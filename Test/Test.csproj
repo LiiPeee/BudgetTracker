@@ -21,6 +21,7 @@
     <ProjectReference Include="..\src\BudgetTracker.Core\BudgetTracker.Core.csproj" />
     <ProjectReference Include="..\src\BudgetTracker.Infrastructure\BudgetTracker.Infrastructure.csproj" />
     <ProjectReference Include="..\src\BudgetTracker.Application\BudgetTracker.Application.csproj" />
+    <ProjectReference Include="..\src\BudgetTracker.WebApi\BudgetTracker.WebApi.csproj" />
 
   </ItemGroup>
 

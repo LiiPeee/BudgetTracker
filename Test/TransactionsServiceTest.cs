@@ -1,6 +1,7 @@
 using BudgetTracker.Application.Service;
 using BudgetTracker.Core.Domain.Dtos.Output;
 using BudgetTracker.Core.Domain.Dtos.Request.Transaction;
+using BudgetTracker.Core.Domain.Models.Request.Transaction;
 using BudgetTracker.Core.Domain.Entities;
 using BudgetTracker.Core.Domain.Enum;
 using BudgetTracker.Core.Domain.Repository;
@@ -105,7 +106,7 @@ public class TransactionsServiceTest
         var transaction = new Transactions { Id = 5, AccountId = 1, Amount = 30, Paid = false, TypeTransactionId = 2, Name = "Test" };
 
         _transactionsRepo.Setup(r => r.GetByIdAsync(5, 1)).ReturnsAsync(transaction);
-        _transactionsRepo.Setup(r => r.MarkAsPaidAsync(5, 1)).ReturnsAsync(true);
+        _transactionsRepo.Setup(r => r.MarkAsPaidAsync(5, 1, true)).ReturnsAsync(true);
         _accountRepo.Setup(r => r.UpdateBalanceAtomicAsync(1, It.IsAny<decimal>())).Returns(Task.CompletedTask);
 
         await _service.PaidAsync(1, new PaidTransactionRequest { TransactionId = 5, Paid = true });
@@ -121,7 +122,7 @@ public class TransactionsServiceTest
         var transaction = new Transactions { Id = 5, AccountId = 1, Amount = 30, Paid = false, TypeTransactionId = 1, Name = "Test" };
 
         _transactionsRepo.Setup(r => r.GetByIdAsync(5, 1)).ReturnsAsync(transaction);
-        _transactionsRepo.Setup(r => r.MarkAsPaidAsync(5, 1)).ReturnsAsync(true);
+        _transactionsRepo.Setup(r => r.MarkAsPaidAsync(5, 1, true)).ReturnsAsync(true);
         _accountRepo.Setup(r => r.UpdateBalanceAtomicAsync(1, It.IsAny<decimal>())).Returns(Task.CompletedTask);
 
         await _service.PaidAsync(1, new PaidTransactionRequest { TransactionId = 5, Paid = true });
@@ -136,7 +137,7 @@ public class TransactionsServiceTest
         var transaction = new Transactions { Id = 5, AccountId = 1, Amount = 30, Paid = false, TypeTransactionId = 1, Name = "Test" };
 
         _transactionsRepo.Setup(r => r.GetByIdAsync(5, 1)).ReturnsAsync(transaction);
-        _transactionsRepo.Setup(r => r.MarkAsPaidAsync(5, 1)).ReturnsAsync(false);
+        _transactionsRepo.Setup(r => r.MarkAsPaidAsync(5, 1, true)).ReturnsAsync(false);
 
         await _service.PaidAsync(1, new PaidTransactionRequest { TransactionId = 5, Paid = true });
 
@@ -168,15 +169,13 @@ public class TransactionsServiceTest
         _subCategoryRepo.Setup(r => r.GetByNameAsync(1, "Lunch", It.IsAny<long?>())).ReturnsAsync(new SubCategory { Id = 3, Name = "Lunch" });
         _transactionsRepo.Setup(r => r.UpdateAsync(It.IsAny<Transactions>())).ReturnsAsync(true);
 
-        var request = new CreateTrasactionRequest
+        var request = new EditTransactionRequest
         {
             Amount          = 99,
             TransactionName = "New name",
             CategoryName    = "Alimentação",
             ContactName     = "John",
             SubCategoryName = "Lunch",
-            Description     = "d",
-            Recurrence      = Recurrence.NONE,
             TypeTransaction = TypeTransactions.EXPENSE,
             Paid            = true,
         };
@@ -193,10 +192,10 @@ public class TransactionsServiceTest
     {
         _transactionsRepo.Setup(r => r.GetByIdAsync(5, 1)).ReturnsAsync((Transactions?)null);
 
-        var request = new CreateTrasactionRequest
+        var request = new EditTransactionRequest
         {
             Amount = 10, TransactionName = "x", CategoryName = "Alimentação", ContactName = "John",
-            SubCategoryName = "Lunch", Recurrence = Recurrence.NONE, TypeTransaction = TypeTransactions.EXPENSE, Paid = false,
+            SubCategoryName = "Lunch", TypeTransaction = TypeTransactions.EXPENSE, Paid = false,
         };
 
         Assert.ThrowsAsync<UnauthorizedAccessException>(() => _service.EditTransactionAsync(1, 5, request));

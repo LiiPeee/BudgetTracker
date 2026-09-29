@@ -27,7 +27,7 @@ public class BudgetLimitServiceTest
     }
 
     private void SetupSingleBudget(BudgetLimit budget) =>
-        _budgetRepo.Setup(r => r.GetByAccountIdAsync(1, It.IsAny<int>()))
+        _budgetRepo.Setup(r => r.GetByAccountIdAsync(1, It.IsAny<int>(), 1, It.IsAny<int>()))
             .ReturnsAsync(new IPagedResult<BudgetLimit?>
             {
                 Items = new List<BudgetLimit?> { budget },
@@ -43,7 +43,7 @@ public class BudgetLimitServiceTest
         SetupSingleBudget(budget);
         _transactionsRepo.Setup(r => r.GetExpenseTotalByCategoryAsync(1, 2, 6, 2026)).ReturnsAsync(50m);
 
-        var item = (await _service.GetByAccountIdAsync(1, 1)).Items.First();
+        var item = (await _service.GetByAccountIdAsync(1, 1, 1)).Items.First();
 
         Assert.That(item!.Percentage, Is.EqualTo(25m));         // 50 / 200 * 100
         Assert.That(item.IsLimit, Is.False);
@@ -57,7 +57,7 @@ public class BudgetLimitServiceTest
         SetupSingleBudget(budget);
         _transactionsRepo.Setup(r => r.GetExpenseTotalByCategoryAsync(1, 2, 6, 2026)).ReturnsAsync(150m);
 
-        var item = (await _service.GetByAccountIdAsync(1, 1)).Items.First();
+        var item = (await _service.GetByAccountIdAsync(1, 1, 1)).Items.First();
 
         Assert.That(item!.IsLimit, Is.True);
         Assert.That(item.Percentage, Is.EqualTo(150m));
@@ -70,7 +70,7 @@ public class BudgetLimitServiceTest
         SetupSingleBudget(budget);
         _transactionsRepo.Setup(r => r.GetExpenseTotalByCategoryAsync(1, 2, 6, 2026)).ReturnsAsync(10m);
 
-        var item = (await _service.GetByAccountIdAsync(1, 1)).Items.First();
+        var item = (await _service.GetByAccountIdAsync(1, 1, 1)).Items.First();
 
         Assert.That(item!.Percentage, Is.EqualTo(0m));
         Assert.That(item.IsLimit, Is.True);   // any spend exceeds a zero budget
@@ -83,7 +83,7 @@ public class BudgetLimitServiceTest
         SetupSingleBudget(budget);
         _transactionsRepo.Setup(r => r.GetExpenseTotalByCategoryAsync(1, 2, 6, 2026)).ReturnsAsync(0m);
 
-        var item = (await _service.GetByAccountIdAsync(1, 1)).Items.First();
+        var item = (await _service.GetByAccountIdAsync(1, 1, 1)).Items.First();
 
         Assert.That(item!.Percentage, Is.EqualTo(0m));
         Assert.That(item.IsLimit, Is.False);

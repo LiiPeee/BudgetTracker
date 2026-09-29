@@ -24,6 +24,7 @@ Env.Load();
 
 builder.Services.ConfigureApplicationServicesWebApi(builder.Configuration);
 builder.Services.AddInfrastructureWebApi(builder.Configuration);
+builder.Services.AddScoped<BudgetTracker.WebApi.Services.IExpiredTokenValidator, BudgetTracker.WebApi.Services.ExpiredTokenValidator>();
 
 // API stateless: o JWT é o esquema padrão de autenticação E de challenge, para que
 // endpoints [Authorize] validem o Bearer token e retornem 401 em falha. Cookie/Google
