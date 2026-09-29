@@ -35,7 +35,8 @@ namespace BudgetTracker.Application.Service
                 if (request.Year is < 2000 or > 2100)
                     throw new ArgumentException("year is invalid");
 
-                var category = await _categoryRepository.GetByIdAsync(EnumHelper.Category(request.CategoryName)) ?? throw new KeyNotFoundException("we cannot find category for this transaction");
+                var category = await _categoryRepository.GetByNameAsync(request.CategoryName)
+                    ?? throw new KeyNotFoundException("we cannot find category for this transaction");
 
                 BudgetLimit budget = new()
                 {
