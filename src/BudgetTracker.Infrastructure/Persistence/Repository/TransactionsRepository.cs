@@ -13,6 +13,26 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
     {
     }
 
+    // Colunas explícitas para o multi-mapping (splitOn "Id,Id"): a ordem é fixa,
+    // independente da ordem física das colunas no Postgres. Com `SELECT *` qualquer
+    // alteração de schema poderia quebrar o mapeamento silenciosamente.
+    private const string TransactionWithContactAndCategoryColumns = @"
+        t.Id, t.AccountId, t.Amount, t.Name, t.Description, t.Paid,
+        t.NumberOfInstallment, t.DateOfInstallment, t.CompetenceDate,
+        t.QuantityInstallment, t.RecurrenceId, t.ContactId, t.SubCategoryId,
+        t.CategoryId, t.TypeTransactionId, t.CreatedAt, t.UpdatedAt,
+        ct.Id, ct.AccountId, ct.Name, ct.Email, ct.Phone, ct.Document,
+        ct.IsActive, ct.TypeContactId, ct.CreatedAt, ct.UpdatedAt,
+        cat.Id, cat.Name, cat.Description, cat.IsActive, cat.CreatedAt, cat.UpdatedAt";
+
+    private const string TransactionWithContactColumns = @"
+        t.Id, t.AccountId, t.Amount, t.Name, t.Description, t.Paid,
+        t.NumberOfInstallment, t.DateOfInstallment, t.CompetenceDate,
+        t.QuantityInstallment, t.RecurrenceId, t.ContactId, t.SubCategoryId,
+        t.CategoryId, t.TypeTransactionId, t.CreatedAt, t.UpdatedAt,
+        ct.Id, ct.AccountId, ct.Name, ct.Email, ct.Phone, ct.Document,
+        ct.IsActive, ct.TypeContactId, ct.CreatedAt, ct.UpdatedAt";
+
     // FILTRO POR CATEGORIA, TIPO, MES E ANO
     public async Task<IPagedResult<Transactions>> FilterTransactionsByCategoryAsync(long accountId, string categoryName, string type, long month, long year, int pageNumber = 1)
     {
@@ -22,7 +42,7 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         var offset = (pageNumber - 1) * pageSize;
 
         var query = @"
-        SELECT t.*, ct.*, cat.*
+        SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
@@ -78,7 +98,7 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         var offset = (pageNumber - 1) * pageSize;
 
         var query = @"
-        SELECT t.*, ct.*, cat.*
+        SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
@@ -134,7 +154,7 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         var offset = (pageNumber - 1) * pageSize;
 
         var query = @"
-        SELECT t.*, ct.*, cat.*
+        SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
@@ -189,7 +209,7 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         var offset = (pageNumber - 1) * pageSize;
 
         var query = @"
-        SELECT t.*, ct.*, cat.*
+        SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
@@ -252,7 +272,7 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         var offset = (pageNumber - 1) * pageSize;
 
         var query = @"
-        SELECT t.*, ct.*, cat.*
+        SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
@@ -333,7 +353,7 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
 
     public async Task<List<Transactions>> FilterExpenseMonthWithContactAsync(long accountId, long year, long month)
     {
-        var query = @"SELECT t.*, ct.*
+        var query = @"SELECT {TransactionWithContactColumns}
         FROM Transactions t 
         LEFT JOIN Contact ct ON t.ContactId = ct.Id
         WHERE t.AccountId = @AccountId 
@@ -399,7 +419,7 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         var offset = (pageNumber - 1) * pageSize;
 
         var query = @"
-        SELECT t.*, ct.*, cat.*
+        SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id

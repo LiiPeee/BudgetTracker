@@ -122,6 +122,7 @@ public class TransactionsAppService : ITransactionsAppService
                 { Name = transactionRequest.SubCategoryName, IsActive = true, CategoryId = category, AccountId = accountId });
 
             existing.Amount = transactionRequest.Amount;
+            existing.Name = transactionRequest.TransactionName;
             existing.CategoryId = category;
             existing.ContactId = contact.Id;
             existing.SubCategoryId = subCategory.Id;

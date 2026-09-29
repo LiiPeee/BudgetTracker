@@ -3,14 +3,16 @@ using System.Text.Json;
 using BudgetTracker.Core.Infrastructure.OutPut;
 using BudgetTracker.Core.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 
 namespace BudgetTracker.Infrastructure.Services
 {
-    public class StockMarketService(IHttpClientFactory httpClientFactory, IConfiguration configuration) : IStockMarketService
+    public class StockMarketService(IHttpClientFactory httpClientFactory, IConfiguration configuration, ILogger<StockMarketService> logger) : IStockMarketService
     {
         private readonly string _urlBase = configuration["BrApi:Url"]!;
         private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
+        private readonly ILogger<StockMarketService> _logger = logger;
 
         private static readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -22,15 +24,20 @@ namespace BudgetTracker.Infrastructure.Services
             try
             {
                 var response = await client.GetAsync($"{_urlBase}quote/{tick}");
-                if (!response.IsSuccessStatusCode) return null;
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("BrAPI returned {StatusCode} for ticker {Ticker}", response.StatusCode, tick);
+                    return null;
+                }
 
                 var result = await response.Content.ReadFromJsonAsync<BrApiResponse>(_jsonOptions);
                 var price = result?.Results?.FirstOrDefault()?.RegularMarketPrice ?? 0;
 
                 return price > 0 ? new StockMarketResponse { Ticker = tick, PriceMarket = price } : null;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to fetch price for ticker {Ticker}", tick);
                 return null;
             }
         }

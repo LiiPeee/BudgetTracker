@@ -1,4 +1,5 @@
 using BudgetTracker.Application.Dtos.Request;
+using BudgetTracker.Core.Domain.Dtos.Output;
 using BudgetTracker.Core.Domain.Entities;
 using BudgetTracker.Core.Domain.Models.Request.Contact;
 using BudgetTracker.Core.Domain.Repository;
@@ -20,7 +21,18 @@ public class ContactAppService : IContactAppService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Contact?> CreateAsync(long accountId, CreateContactRequest request)
+    private static ContactOutput ToOutput(Contact contact) => new()
+    {
+        Id = contact.Id,
+        Name = contact.Name,
+        Email = contact.Email,
+        Phone = contact.Phone,
+        Document = contact.Document,
+        TypeContactId = contact.TypeContactId,
+        IsActive = contact.IsActive,
+    };
+
+    public async Task<ContactOutput?> CreateAsync(long accountId, CreateContactRequest request)
     {
         try
         {
@@ -59,7 +71,7 @@ public class ContactAppService : IContactAppService
 
             _unitOfWork.Commit();
 
-            return savedContact;
+            return ToOutput(savedContact);
         }
         catch
         {
@@ -68,12 +80,12 @@ public class ContactAppService : IContactAppService
         }
     }
 
-    public async Task<List<Contact?>> GetAllsync(long accountId)
+    public async Task<List<ContactOutput?>> GetAllsync(long accountId)
     {
         try
         {
             var contact = await _contactRepository.GetByIdAccount(accountId);
-            return contact;
+            return contact.Select(ToOutput).ToList<ContactOutput?>();
         }
         catch (Exception ex)
         {

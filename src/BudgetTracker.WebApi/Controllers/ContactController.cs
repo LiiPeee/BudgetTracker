@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using BudgetTracker.Application.Dtos.Request;
-using BudgetTracker.Core.Domain.Entities;
+using BudgetTracker.Core.Domain.Dtos.Output;
 using BudgetTracker.Core.Domain.Models.Request.Contact;
 using BudgetTracker.Core.Domain.Service;
 using Microsoft.AspNetCore.Authorization;
@@ -20,7 +20,7 @@ namespace BudgetTracker.WebApi.Controller
         }
 
         [HttpPost("[action]")]
-        public async Task<Contact?> CreateAsync([FromBody] CreateContactRequest contactRequest)
+        public async Task<ContactOutput?> CreateAsync([FromBody] CreateContactRequest contactRequest)
         {
             var accountId = long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -28,7 +28,7 @@ namespace BudgetTracker.WebApi.Controller
         }
 
         [HttpGet("[action]")]
-        public async Task<List<Contact?>> GetAllAsync()
+        public async Task<List<ContactOutput?>> GetAllAsync()
         {
             var accountId = long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 

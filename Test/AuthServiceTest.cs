@@ -10,6 +10,8 @@ using BudgetTracker.Core.Infrastructure.Services;
 using Microsoft.AspNet.Identity;
 using Microsoft.Extensions.Configuration;
 using Moq;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Test;
 
@@ -27,6 +29,9 @@ public class AuthServiceTest
     private const string ValidPassword       = "ValidPass1!";
     private static readonly string HashedValidPassword = new PasswordHasher().HashPassword(ValidPassword);
 
+    // O token de e-mail é armazenado como hash SHA-256 (o texto puro só vai por e-mail).
+    private static string HashToken(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+
     [SetUp]
     public void Setup()
     {
@@ -41,6 +46,7 @@ public class AuthServiceTest
             _accountRepo.Object,
             _resetPasswordRepo.Object,
             _passwordHelper.Object,
+            new PasswordHasherService(),
             _emailService.Object,
             _unitOfWork.Object,
             _configuration.Object);
@@ -189,7 +195,7 @@ public class AuthServiceTest
         var account = new Account
         {
             Id = 1,
-            EmailVerificationToken = "valid-token",
+            EmailVerificationToken = HashToken("valid-token"),
             EmailVerificationTokenExpiry = DateTime.UtcNow.AddHours(1),
             VerifyAttempts = 0,
         };
@@ -235,7 +241,7 @@ public class AuthServiceTest
     [Test]
     public async Task VerifyTokenAsync_InvalidToken_ThrowsAndRollsBack()
     {
-        var account = new Account { Id = 1, VerifyAttempts = 0, EmailVerificationToken = "correct-token" };
+        var account = new Account { Id = 1, VerifyAttempts = 0, EmailVerificationToken = HashToken("correct-token") };
         _passwordHelper.Setup(p => p.DecryptUrl(It.IsAny<string>())).Returns("1");
         _accountRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(account);
 
@@ -253,7 +259,7 @@ public class AuthServiceTest
         {
             Id = 1,
             VerifyAttempts = 0,
-            EmailVerificationToken = "token",
+            EmailVerificationToken = HashToken("token"),
             EmailVerificationTokenExpiry = DateTime.UtcNow.AddHours(-1),
         };
 
@@ -270,7 +276,7 @@ public class AuthServiceTest
     [Test]
     public void VerifyTokenAsync_InvalidToken_PersistsIncrementedAttempt()
     {
-        var account = new Account { Id = 1, VerifyAttempts = 0, EmailVerificationToken = "correct-token" };
+        var account = new Account { Id = 1, VerifyAttempts = 0, EmailVerificationToken = HashToken("correct-token") };
         _passwordHelper.Setup(p => p.DecryptUrl(It.IsAny<string>())).Returns("1");
         _accountRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(account);
         _accountRepo.Setup(r => r.UpdateAsync(It.IsAny<Account>())).ReturnsAsync(true);
@@ -290,7 +296,7 @@ public class AuthServiceTest
         {
             Id = 1,
             VerifyAttempts = 3,
-            EmailVerificationToken = "valid-token",
+            EmailVerificationToken = HashToken("valid-token"),
             EmailVerificationTokenExpiry = DateTime.UtcNow.AddHours(1),
         };
         _passwordHelper.Setup(p => p.DecryptUrl(It.IsAny<string>())).Returns("1");

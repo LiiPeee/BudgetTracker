@@ -17,17 +17,17 @@ public class StockAppServiceTests
 {
     private const long AccountId = 1;
 
-    private static Stock BuildStock(string ticker, decimal priceBuyed) =>
-        new() { Id = 1, AccountId = AccountId, Ticker = ticker, Title = ticker, PriceBuyed = priceBuyed, Quantity = 1 };
+    private static Stock BuildStock(string ticker, decimal priceBuyed, decimal priceMarket = 0m) =>
+        new() { Id = 1, AccountId = AccountId, Ticker = ticker, Title = ticker, PriceBuyed = priceBuyed, PriceMarket = priceMarket, Quantity = 1, IsStock = true };
 
-    private static StockAppService BuildService(List<Stock> stocks, List<StockMarketResponse> live)
+    private static StockAppService BuildService(List<Stock> stocks)
     {
         var stockRepository = new Mock<IStockRepository>();
         stockRepository.Setup(r => r.GetAllAsync(AccountId)).ReturnsAsync(stocks);
         stockRepository.Setup(r => r.UpdateAsync(It.IsAny<Stock>())).ReturnsAsync(true);
 
         var marketService = new Mock<IStockMarketService>();
-        marketService.Setup(m => m.GetStockByTickerAsync(It.IsAny<List<string>>())).ReturnsAsync(live);
+        marketService.Setup(m => m.GetStockByTickerAsync(It.IsAny<List<string>>())).ReturnsAsync(new List<StockMarketResponse>());
 
         return new StockAppService(stockRepository.Object, marketService.Object, new Mock<IUnitOfWork>().Object);
     }
@@ -35,7 +35,7 @@ public class StockAppServiceTests
     [Test]
     public async Task Dado_MercadoSemCotacao_Quando_ListarAtivos_Entao_RetornaComPrecoZeroSemErro()
     {
-        var service = BuildService(new List<Stock> { BuildStock("PETR4", 10m) }, new List<StockMarketResponse>());
+        var service = BuildService(new List<Stock> { BuildStock("PETR4", 10m) });
 
         var result = await service.GetAllStockAsync(AccountId, 1);
 
@@ -48,11 +48,13 @@ public class StockAppServiceTests
     }
 
     [Test]
-    public async Task Dado_CotacaoParcial_Quando_ListarAtivos_Entao_NaoLancaParaTickerSemCotacao()
+    public async Task Dado_StocksComPrecosDiferentes_Quando_ListarAtivos_Entao_RetornaPrecosDoBanco()
     {
-        var service = BuildService(
-            new List<Stock> { BuildStock("PETR4", 10m), BuildStock("VALE3", 20m) },
-            new List<StockMarketResponse> { new() { Ticker = "PETR4", PriceMarket = 15m } });
+        var service = BuildService(new List<Stock>
+        {
+            BuildStock("PETR4", 10m, priceMarket: 15m),
+            BuildStock("VALE3", 20m),
+        });
 
         var result = await service.GetAllStockAsync(AccountId, 1);
 
