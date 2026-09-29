@@ -301,40 +301,34 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         };
     }
 
-    public async Task<List<Transactions>> FilterExpenseMonthAndYearAsync(long accountId, long year, long month)
+    public async Task<decimal> FilterExpenseMonthAndYearAsync(long accountId, long year, long month)
     {
-        var query = @"SELECT * FROM Transactions t
-        WHERE t.AccountId = @AccountId 
+        const string query = @"
+        SELECT COALESCE(SUM(t.Amount), 0)
+        FROM Transactions t
+        WHERE t.AccountId = @AccountId
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year)
             AND t.TypeTransactionId = @TypeId";
 
-        if (_db._connection.State == ConnectionState.Open)
-        {
-            var result = await _db._connection.QueryAsync<Transactions>(query, new { AccountId = accountId, Month = month, Year = year, TypeId = (long)TypeTransactions.EXPENSE }, _db._transaction);
-            return result.ToList();
-        }
-        else
-        {
+        if (_db._connection.State != ConnectionState.Open)
             throw new Exception("connection lost");
-        }
+
+        return await _db._connection.ExecuteScalarAsync<decimal>(query, new { AccountId = accountId, Month = month, Year = year, TypeId = (long)TypeTransactions.EXPENSE }, _db._transaction);
     }
 
-    public async Task<List<Transactions>> FilterIncomeMonthAndYearAsync(long accountId, long year, long month)
+    public async Task<decimal> FilterIncomeMonthAndYearAsync(long accountId, long year, long month)
     {
-        var query = @"SELECT * FROM Transactions t
-        WHERE t.AccountId = @AccountId 
+        const string query = @"
+        SELECT COALESCE(SUM(t.Amount), 0)
+        FROM Transactions t
+        WHERE t.AccountId = @AccountId
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year)
             AND t.TypeTransactionId = @TypeId";
 
-        if (_db._connection.State == ConnectionState.Open)
-        {
-            var result = await _db._connection.QueryAsync<Transactions>(query, new { AccountId = accountId, Month = month, Year = year, TypeId = (long)TypeTransactions.INCOME }, _db._transaction);
-            return result.ToList();
-        }
-        else
-        {
+        if (_db._connection.State != ConnectionState.Open)
             throw new Exception("connection lost");
-        }
+
+        return await _db._connection.ExecuteScalarAsync<decimal>(query, new { AccountId = accountId, Month = month, Year = year, TypeId = (long)TypeTransactions.INCOME }, _db._transaction);
     }
 
     public async Task<List<Transactions>> FilterExpenseMonthWithContactAsync(long accountId, long year, long month)

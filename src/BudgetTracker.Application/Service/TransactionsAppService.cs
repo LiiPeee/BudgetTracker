@@ -224,16 +224,7 @@ public class TransactionsAppService : ITransactionsAppService
     {
         try
         {
-            var transactions = await _transactionRepository.FilterExpenseMonthAndYearAsync(accountId, year, month);
-
-            decimal totalExpense = 0;
-
-            foreach (var transaction in transactions)
-            {
-                totalExpense += transaction.Amount;
-            }
-
-            return totalExpense;
+            return await _transactionRepository.FilterExpenseMonthAndYearAsync(accountId, year, month);
         }
         catch (Exception ex)
         {
@@ -246,16 +237,7 @@ public class TransactionsAppService : ITransactionsAppService
     {
         try
         {
-            var transactions = await _transactionRepository.FilterIncomeMonthAndYearAsync(accountId, year, month);
-
-            decimal totalIncome = 0;
-
-            foreach (var transaction in transactions)
-            {
-                totalIncome += transaction.Amount;
-            }
-
-            return totalIncome;
+            return await _transactionRepository.FilterIncomeMonthAndYearAsync(accountId, year, month);
         }
         catch (Exception ex)
         {
@@ -512,25 +494,10 @@ public class TransactionsAppService : ITransactionsAppService
     {
         try
         {
-            var expense = await _transactionRepository.FilterExpenseMonthAndYearAsync(accountId, year, month);
-            var income = await _transactionRepository.FilterIncomeMonthAndYearAsync(accountId, year, month);
+            var totalExpense = await _transactionRepository.FilterExpenseMonthAndYearAsync(accountId, year, month);
+            var totalIncome = await _transactionRepository.FilterIncomeMonthAndYearAsync(accountId, year, month);
 
-            var totalExpense = 0m;
-            var totalIncome = 0m;
-
-            foreach (var e in expense)
-            {
-                totalExpense += e.Amount;
-            }
-
-            foreach (var i in income)
-            {
-                totalIncome += i.Amount;
-            }
-
-            var total = totalIncome - totalExpense;
-
-            return total;
+            return totalIncome - totalExpense;
         }
         catch (Exception ex)
         {

@@ -220,13 +220,7 @@ public class TransactionsServiceTest
     [Test]
     public async Task FilterExpenseMonthAndYearAsync_ReturnsSumOfAmounts()
     {
-        var transactions = new List<Transactions>
-        {
-            new() { Amount = 100, Name = "T1" },
-            new() { Amount = 50,  Name = "T2" },
-        };
-
-        _transactionsRepo.Setup(r => r.FilterExpenseMonthAndYearAsync(1, 2026, 5)).ReturnsAsync(transactions);
+        _transactionsRepo.Setup(r => r.FilterExpenseMonthAndYearAsync(1, 2026, 5)).ReturnsAsync(150m);
 
         var total = await _service.FilterExpenseMonthAndYearAsync(1, 2026, 5);
 
@@ -236,7 +230,7 @@ public class TransactionsServiceTest
     [Test]
     public async Task FilterExpenseMonthAndYearAsync_NoTransactions_ReturnsZero()
     {
-        _transactionsRepo.Setup(r => r.FilterExpenseMonthAndYearAsync(1, 2026, 5)).ReturnsAsync(new List<Transactions>());
+        _transactionsRepo.Setup(r => r.FilterExpenseMonthAndYearAsync(1, 2026, 5)).ReturnsAsync(0m);
 
         var total = await _service.FilterExpenseMonthAndYearAsync(1, 2026, 5);
 

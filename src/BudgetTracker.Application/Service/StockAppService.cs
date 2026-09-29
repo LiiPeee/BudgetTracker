@@ -49,14 +49,9 @@ namespace BudgetTracker.Application.Service
             var stocks = (await _stockRepository.GetAllAsync(accountId))
                 .Where(x => x.IsStock == true).ToList();
 
-            var tickers = stocks.Select(s => s.Ticker).ToList();
-
-            var liveStocks = await _stockMarketService.GetStockByTickerAsync(tickers);
-
             var allStocks = stocks.Select(x =>
             {
-                var live = liveStocks.FirstOrDefault(l => l.Ticker == x.Ticker);
-                var priceMarket = live?.PriceMarket ?? x.PriceMarket;
+                var priceMarket = x.PriceMarket;
                 var percentage = x.PriceBuyed > 0
                         ? (priceMarket - x.PriceBuyed) / x.PriceBuyed * 100
                         : 0;
@@ -74,39 +69,6 @@ namespace BudgetTracker.Application.Service
                 };
 
             }).ToList();
-
-
-            foreach (var live in liveStocks)
-            {
-                var data = stocks.FirstOrDefault(i => i.Ticker == live.Ticker);
-                if (data is null) continue;
-
-                _unitOfWork.BeginTransaction();
-
-                var percentage = data.PriceBuyed > 0
-                        ? (live.PriceMarket - data.PriceBuyed) / data.PriceBuyed * 100
-                        : 0;
-
-                Stock stock = new()
-                {
-                    Id = data.Id,
-                    UpdatedAt = DateTime.UtcNow,
-                    PriceBuyed = data.PriceBuyed,
-                    Quantity = data.Quantity,
-                    PriceMarket = live.PriceMarket,
-                    AccountId = data.AccountId,
-                    Avarage = $"{Math.Round(percentage, 2)}%",
-                    FixedIncomeType = data.FixedIncomeType,
-                    Ticker = data.Ticker,
-                    Title = data.Title,
-                    IsStock = data.IsStock,
-                    CdiRate = data.CdiRate,
-                    InvestmentDate = data.InvestmentDate,
-                };
-                await _stockRepository.UpdateAsync(stock);
-                _unitOfWork.Commit();
-            }
-
 
             var pageSize = 10;
 
@@ -128,14 +90,9 @@ namespace BudgetTracker.Application.Service
         {
             var funds = (await _stockRepository.GetAllAsync(accountId)).ToList();
 
-            var tickers = funds.Where(x => x.IsStock == false).Select(s => s.Ticker).ToList();
-
-            var liveFunds = await _stockMarketService.GetFundsByTickerAsync(tickers);
-
             var allFunds = funds.Where(x => x.IsStock == false).Select(x =>
             {
-                var live = liveFunds.FirstOrDefault(l => l.Ticker == x.Ticker);
-                var priceMarket = live?.PriceMarket ?? x.PriceMarket;
+                var priceMarket = x.PriceMarket;
                 var percentage = x.PriceBuyed > 0
                         ? (priceMarket - x.PriceBuyed) / x.PriceBuyed * 100
                         : 0;
@@ -153,38 +110,6 @@ namespace BudgetTracker.Application.Service
                 };
 
             }).ToList();
-
-
-            foreach (var live in liveFunds)
-            {
-                var data = funds.FirstOrDefault(i => i.Ticker == live.Ticker);
-                if (data is null) continue;
-
-                _unitOfWork.BeginTransaction();
-
-                var percentage = data.PriceBuyed > 0
-                        ? (live.PriceMarket - data.PriceBuyed) / data.PriceBuyed * 100
-                        : 0;
-
-                Stock stock = new()
-                {
-                    Id = data.Id,
-                    UpdatedAt = DateTime.UtcNow,
-                    PriceBuyed = data.PriceBuyed,
-                    Quantity = data.Quantity,
-                    FixedIncomeType = data.FixedIncomeType,
-                    PriceMarket = live.PriceMarket,
-                    IsStock = data.IsStock,
-                    CdiRate = data.CdiRate,
-                    InvestmentDate = data.InvestmentDate,
-                    AccountId = data.AccountId,
-                    Avarage = $"{Math.Round(percentage, 2)}%",
-                    Ticker = data.Ticker,
-                    Title = data.Title,
-                };
-                await _stockRepository.UpdateAsync(stock);
-                _unitOfWork.Commit();
-            }
 
             var pageSize = 10;
 
