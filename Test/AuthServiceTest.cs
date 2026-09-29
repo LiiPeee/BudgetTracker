@@ -111,16 +111,17 @@ public class AuthServiceTest
     }
 
     [Test]
-    public async Task SignUpAsync_EmailAlreadyExists_ThrowsArgumentExceptionAndRollsBack()
+    public async Task SignUpAsync_EmailAlreadyExists_ReturnsSuccessMessageWithoutCreatingAccount()
     {
         var request = BuildSignUpRequest(email: "existe@test.com");
         _accountRepo.Setup(r => r.GetByEmailAsync(request.Email)).ReturnsAsync(new Account { Id = 1 });
 
-        var ex = Assert.ThrowsAsync<ArgumentException>(() => _service.SignUpAsync(request));
+        var result = await _service.SignUpAsync(request);
 
-        Assert.That(ex!.Message, Does.Contain("already exist"));
-        _unitOfWork.Verify(u => u.Rollback(), Times.Once);
+        Assert.That(result, Is.EqualTo("We send a verification email for you"));
+        _unitOfWork.Verify(u => u.BeginTransaction(), Times.Never);
         _unitOfWork.Verify(u => u.Commit(), Times.Never);
+        _accountRepo.Verify(r => r.AddAsync(It.IsAny<Account>()), Times.Never);
     }
 
     [Test]
