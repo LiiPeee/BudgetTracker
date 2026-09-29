@@ -1,4 +1,4 @@
-using BudgetTracker.Application.Dtos.Request;
+using BudgetTracker.Core.Domain.Models.Request.Category;
 using BudgetTracker.Application.Service;
 using BudgetTracker.Core.Domain.Entities;
 using BudgetTracker.Core.Domain.Repository;

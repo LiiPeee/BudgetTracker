@@ -34,7 +34,7 @@ public class BudgetLimitServiceTests
 
         var budgetRepository = new Mock<IBudgetLimitRepository>();
         budgetRepository
-            .Setup(r => r.GetByAccountIdAsync(AccountId, It.IsAny<int>()))
+            .Setup(r => r.GetByAccountIdAsync(AccountId, It.IsAny<int>(), AccountId, It.IsAny<int>()))
             .ReturnsAsync(new IPagedResult<BudgetLimit?>
             {
                 PageNumber = 1,
@@ -55,7 +55,7 @@ public class BudgetLimitServiceTests
             new Mock<ICategoryRepository>().Object,
             transactionRepository.Object);
 
-        var result = await service.GetByAccountIdAsync(AccountId, 1);
+        var result = await service.GetByAccountIdAsync(AccountId, 1, AccountId);
         var item = result.Items.First();
 
         Assert.Multiple(() =>

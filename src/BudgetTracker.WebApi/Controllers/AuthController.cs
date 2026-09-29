@@ -4,6 +4,7 @@ using BudgetTracker.Core.Domain.Models.Output;
 using BudgetTracker.Core.Domain.Models.Request.Account;
 using BudgetTracker.Core.Domain.Service;
 using BudgetTracker.WebApi.Models.Auth;
+using BudgetTracker.WebApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,9 +12,10 @@ namespace BudgetTracker.WebApi.Controller
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class AuthController(IAuthenticationAppService accountAppService) : ControllerBase
+    public class AuthController(IAuthenticationAppService accountAppService, IExpiredTokenValidator expiredTokenValidator) : ControllerBase
     {
         private readonly IAuthenticationAppService _accountAppService = accountAppService;
+        private readonly IExpiredTokenValidator _expiredTokenValidator = expiredTokenValidator;
 
         [HttpPost("[action]")]
         public async Task<ActionResult<CreateAccountDto>> SignUpAsync([FromBody] CreateAccountRequestDto request)
@@ -81,14 +83,16 @@ namespace BudgetTracker.WebApi.Controller
             return Ok(await _accountAppService.ValidateResetCodeAsync(email, token));
         }
         [HttpPost("[action]")]
-        [Authorize(Roles = "User,Admin")]
         public async Task<ActionResult<TokenResponseDto?>> RefreshTokenAsync(RefreshTokenAccountRequest request)
         {
-            var accountId = long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var accountId = _expiredTokenValidator.GetAccountIdFromExpiredToken(Request.Headers.Authorization.ToString());
+
+            if (accountId is null)
+                return Unauthorized();
 
             var requestMapper = new RefreshTokenRequestDto()
             {
-                AccountId = accountId,
+                AccountId = accountId.Value,
                 RefreshToken = request.RefreshToken
             };
 
