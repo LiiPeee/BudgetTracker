@@ -100,34 +100,36 @@ public class TransactionsServiceTest
     // ── PaidAsync ────────────────────────────────────────────────────────────
 
     [Test]
-    public async Task PaidAsync_ValidIncomeTransaction_CreditsBalanceAndCommits()
+    public async Task PaidAsync_MarksAsPaid_WithoutTouchingBalance()
     {
-        // INCOME (type 2) → balance increases by +Amount.
+        // Since #18 the balance is derived from paid transactions, so PaidAsync
+        // must only flip the flag — never call UpdateBalanceAtomicAsync.
         var transaction = new Transactions { Id = 5, AccountId = 1, Amount = 30, Paid = false, TypeTransactionId = 2, Name = "Test" };
 
         _transactionsRepo.Setup(r => r.GetByIdAsync(5, 1)).ReturnsAsync(transaction);
         _transactionsRepo.Setup(r => r.MarkAsPaidAsync(5, 1, true)).ReturnsAsync(true);
-        _accountRepo.Setup(r => r.UpdateBalanceAtomicAsync(1, It.IsAny<decimal>())).Returns(Task.CompletedTask);
 
         await _service.PaidAsync(1, new PaidTransactionRequest { TransactionId = 5, Paid = true });
 
-        _accountRepo.Verify(r => r.UpdateBalanceAtomicAsync(1, 30m), Times.Once);
+        _transactionsRepo.Verify(r => r.MarkAsPaidAsync(5, 1, true), Times.Once);
+        _accountRepo.Verify(r => r.UpdateBalanceAtomicAsync(It.IsAny<long>(), It.IsAny<decimal>()), Times.Never);
         _unitOfWork.Verify(u => u.Commit(), Times.Once);
     }
 
     [Test]
-    public async Task PaidAsync_ExpenseTransaction_DebitsBalance()
+    public async Task PaidAsync_UnpaidFlag_DoesNotTouchBalance()
     {
-        // EXPENSE (type 1) → balance decreases by -Amount.
-        var transaction = new Transactions { Id = 5, AccountId = 1, Amount = 30, Paid = false, TypeTransactionId = 1, Name = "Test" };
+        // Flipping back to unpaid must also leave the balance untouched.
+        var transaction = new Transactions { Id = 5, AccountId = 1, Amount = 30, Paid = true, TypeTransactionId = 1, Name = "Test" };
 
         _transactionsRepo.Setup(r => r.GetByIdAsync(5, 1)).ReturnsAsync(transaction);
-        _transactionsRepo.Setup(r => r.MarkAsPaidAsync(5, 1, true)).ReturnsAsync(true);
-        _accountRepo.Setup(r => r.UpdateBalanceAtomicAsync(1, It.IsAny<decimal>())).Returns(Task.CompletedTask);
+        _transactionsRepo.Setup(r => r.MarkAsPaidAsync(5, 1, false)).ReturnsAsync(true);
 
-        await _service.PaidAsync(1, new PaidTransactionRequest { TransactionId = 5, Paid = true });
+        await _service.PaidAsync(1, new PaidTransactionRequest { TransactionId = 5, Paid = false });
 
-        _accountRepo.Verify(r => r.UpdateBalanceAtomicAsync(1, -30m), Times.Once);
+        _transactionsRepo.Verify(r => r.MarkAsPaidAsync(5, 1, false), Times.Once);
+        _accountRepo.Verify(r => r.UpdateBalanceAtomicAsync(It.IsAny<long>(), It.IsAny<decimal>()), Times.Never);
+        _unitOfWork.Verify(u => u.Commit(), Times.Once);
     }
 
     [Test]
@@ -165,6 +167,7 @@ public class TransactionsServiceTest
     {
         var existing = new Transactions { Id = 5, AccountId = 1, Amount = 10, Name = "Old", TypeTransactionId = 1 };
         _transactionsRepo.Setup(r => r.GetByIdAsync(5, 1)).ReturnsAsync(existing);
+        _categoryRepo.Setup(r => r.GetByNameAsync("Alimentação")).ReturnsAsync(new Category { Id = 2, Name = "Alimentação" });
         _contactRepo.Setup(r => r.GetByNameAsync(1, "John")).ReturnsAsync(new Contact { Id = 2, Name = "John", AccountId = 1 });
         _subCategoryRepo.Setup(r => r.GetByNameAsync(1, "Lunch", It.IsAny<long?>())).ReturnsAsync(new SubCategory { Id = 3, Name = "Lunch" });
         _transactionsRepo.Setup(r => r.UpdateAsync(It.IsAny<Transactions>())).ReturnsAsync(true);
@@ -220,13 +223,7 @@ public class TransactionsServiceTest
     [Test]
     public async Task FilterExpenseMonthAndYearAsync_ReturnsSumOfAmounts()
     {
-        var transactions = new List<Transactions>
-        {
-            new() { Amount = 100, Name = "T1" },
-            new() { Amount = 50,  Name = "T2" },
-        };
-
-        _transactionsRepo.Setup(r => r.FilterExpenseMonthAndYearAsync(1, 2026, 5)).ReturnsAsync(transactions);
+        _transactionsRepo.Setup(r => r.FilterExpenseMonthAndYearAsync(1, 2026, 5)).ReturnsAsync(150m);
 
         var total = await _service.FilterExpenseMonthAndYearAsync(1, 2026, 5);
 
@@ -236,7 +233,7 @@ public class TransactionsServiceTest
     [Test]
     public async Task FilterExpenseMonthAndYearAsync_NoTransactions_ReturnsZero()
     {
-        _transactionsRepo.Setup(r => r.FilterExpenseMonthAndYearAsync(1, 2026, 5)).ReturnsAsync(new List<Transactions>());
+        _transactionsRepo.Setup(r => r.FilterExpenseMonthAndYearAsync(1, 2026, 5)).ReturnsAsync(0m);
 
         var total = await _service.FilterExpenseMonthAndYearAsync(1, 2026, 5);
 

@@ -26,9 +26,13 @@ namespace BudgetTracker.Core.Domain.Dtos.Output
 
     public class ContactOutput
     {
+        public long Id { get; set; }
         public string? Name { get; set; }
         public string? Email { get; set; }
         public string? Phone { get; set; }
+        public string? Document { get; set; }
+        public long TypeContactId { get; set; }
+        public bool IsActive { get; set; }
     }
     public class CategoryOutput
     {

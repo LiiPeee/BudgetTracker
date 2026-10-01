@@ -79,14 +79,6 @@ namespace BudgetTracker.Application.Service
                     : 0;
                 var isLimit = spent > limit;
 
-                budget.LimitAmount = limit;
-                budget.Percentage = percentage;
-                budget.IsLimit = isLimit;
-
-                _unitOfWork.BeginTransaction();
-                await _budgetLimitRepository.UpdateAsync(budget);
-                _unitOfWork.Commit();
-
                 outputs.Add(new BudgetLimitOutput(
                     budget.Id,
                     budget.CategoryId,

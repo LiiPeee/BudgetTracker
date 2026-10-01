@@ -18,6 +18,7 @@ public static class ApplicationDependencyWebApi
         .AddScoped<ISubCategoryAppService, SubCategoryAppService>()
         .AddScoped<IBudgetLimitService, BudgetLimitService>()
         .AddScoped<IPasswordHelper, PasswordHelper>()
+        .AddSingleton<IPasswordHasher, PasswordHasherService>()
         .AddScoped<ICategoryAppService, CategoryAppService>()
         .AddScoped<ICdiAppService, CdiAppService>()
         .AddScoped<IStockAppService, StockAppService>();

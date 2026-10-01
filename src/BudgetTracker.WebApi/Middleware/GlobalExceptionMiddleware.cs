@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BudgetTracker.Core.Domain.Exceptions;
 
 public class GlobalExceptionMiddleware
 {
@@ -28,15 +29,19 @@ public class GlobalExceptionMiddleware
     {
         context.Response.ContentType = "application/json";
 
-        // Map known domain exceptions to their status + safe message. Unmapped exceptions
-        // become a generic 500 with NO internal detail (raw .Message can leak DB/infra info).
-        var (statusCode, safeMessage) = exception switch
+        // DomainException carries an intentional, client-safe message.
+        // Business exceptions (ArgumentException/UnauthorizedAccessException/KeyNotFoundException)
+        // also expose their message — the frontend relies on those exact strings for i18n.
+        // Infrastructure exceptions (InvalidOperationException and anything else) NEVER leak
+        // their raw .Message in production (DB/API internals stay in the log only).
+        var (statusCode, safeMessage, errorCode) = exception switch
         {
-            ArgumentException => (StatusCodes.Status400BadRequest, exception.Message),
-            UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, exception.Message),
-            KeyNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
-            InvalidOperationException => (StatusCodes.Status409Conflict, exception.Message),
-            _ => (StatusCodes.Status500InternalServerError, "An error occurred while processing your request")
+            DomainException domain => (domain.StatusCode, domain.Message, domain.Code),
+            ArgumentException => (StatusCodes.Status400BadRequest, exception.Message, "bad_request"),
+            UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, exception.Message, "unauthorized"),
+            KeyNotFoundException => (StatusCodes.Status404NotFound, exception.Message, "not_found"),
+            InvalidOperationException => (StatusCodes.Status409Conflict, "An error occurred while processing your request", "conflict"),
+            _ => (StatusCodes.Status500InternalServerError, "An error occurred while processing your request", "internal")
         };
         context.Response.StatusCode = statusCode;
 
@@ -45,6 +50,7 @@ public class GlobalExceptionMiddleware
         {
             error = new
             {
+                code = errorCode,
                 message = isDevelopment ? exception.Message : safeMessage,
                 details = isDevelopment
                     ? exception.StackTrace

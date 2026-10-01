@@ -63,13 +63,20 @@ public class AccountScopedRepositoryBase<T> : IAccountScopedRepository<T>
 
     public async Task<IEnumerable<T>> GetAllAsync(long accountId)
     {
-        var query = $"SELECT * FROM {_tableName} WHERE AccountId = @AccountId LIMIT {MaxRows}";
+        // Fetch one extra row to detect truncation: if more than MaxRows rows
+        // exist, fail loudly instead of silently returning a partial result.
+        var query = $"SELECT * FROM {_tableName} WHERE AccountId = @AccountId LIMIT {MaxRows + 1}";
 
         EnsureConnectionOpen();
 
-        var result = await _db._connection.QueryAsync<T>(
-            query, new { AccountId = accountId }, _db._transaction);
-        return result.ToList();
+        var result = (await _db._connection.QueryAsync<T>(
+            query, new { AccountId = accountId }, _db._transaction)).ToList();
+
+        if (result.Count > MaxRows)
+            throw new InvalidOperationException(
+                $"GetAllAsync for {_tableName} returned more than {MaxRows} rows; the result would be truncated. Use pagination instead.");
+
+        return result;
     }
 
     public async Task<bool> UpdateAsync(T entity)

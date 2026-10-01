@@ -43,6 +43,10 @@ public class TransactionsAppServiceCompetenceTests
             .Setup(r => r.GetByNameAsync(AccountId, It.IsAny<string>()))
             .ReturnsAsync(new Contact { Id = ContactId, Name = "Mercado", AccountId = AccountId });
 
+        _categoryRepository
+            .Setup(r => r.GetByNameAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Category { Id = 2, Name = "Alimentação" });
+
         _subCategoryRepository
             .Setup(r => r.GetByNameAsync(AccountId, It.IsAny<string>(), It.IsAny<long?>()))
             .ReturnsAsync(new SubCategory { Id = SubCategoryId, Name = "Sub", AccountId = AccountId, IsActive = true });

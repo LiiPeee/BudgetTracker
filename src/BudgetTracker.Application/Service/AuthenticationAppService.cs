@@ -8,7 +8,6 @@ using BudgetTracker.Core.Domain.Utils;
 using BudgetTracker.Core.Infrastructure.Repository;
 using BudgetTracker.Core.Infrastructure.Services;
 using Google.Apis.Auth;
-using Microsoft.AspNet.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -20,6 +19,7 @@ namespace BudgetTracker.Application.Service;
 public class AuthenticationAppService(IAccountRepository accountRepository,
     IResetPasswordRepository resetPasswordRepository,
     IPasswordHelper passwordHelper,
+    IPasswordHasher passwordHasher,
     IEmailService emailService,
     IUnitOfWork unitOfWork,
     IConfiguration configuration) : IAuthenticationAppService
@@ -28,10 +28,11 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
     private readonly IEmailService _emailService = emailService;
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IPasswordHelper _passwordHelper = passwordHelper;
+    private readonly IPasswordHasher _passwordHasher = passwordHasher;
 
     private readonly IResetPasswordRepository _resetPasswordRepository = resetPasswordRepository;
 
-    private static readonly string DummyPasswordHash = new PasswordHasher().HashPassword("timing-equalizer-not-a-real-password");
+    private static readonly string DummyPasswordHash = new PasswordHasherService().Hash("timing-equalizer-not-a-real-password");
 
     public async Task<string?> SignUpAsync(CreateAccountRequestDto request)
     {
@@ -50,7 +51,10 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
 
         if (request.Password.Any(char.IsLower) == false) throw new ArgumentException("password must contain at least one lowercase letter");
 
-        var hashPassword = new PasswordHasher().HashPassword(request.Password);
+        var hashPassword = _passwordHasher.Hash(request.Password);
+
+        // O token em claro é enviado apenas por e-mail; no banco fica o hash SHA-256.
+        var verificationToken = _passwordHelper.GenerateVerificationCode();
 
         var account = new Account
         {
@@ -62,7 +66,7 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
             IsActive = false,
             EmailVerified = false,
             VerifiedAt = null,
-            EmailVerificationToken = _passwordHelper.GenerateVerificationCode(),
+            EmailVerificationToken = HashResetCode(verificationToken),
             EmailVerificationTokenExpiry = DateTime.UtcNow.AddHours(4)
         };
 
@@ -72,7 +76,7 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
             var savedAccount = await _accountRepository.AddAsync(account);
 
             var idEncrypted = _passwordHelper.EncryptUrl(savedAccount.Id.ToString());
-            await _emailService.SendCodeToEmailAsync(account.Email, idEncrypted, account.EmailVerificationToken);
+            await _emailService.SendCodeToEmailAsync(account.Email, idEncrypted, verificationToken);
 
             _unitOfWork.Commit();
 
@@ -95,7 +99,7 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
                 throw new ArgumentException("Exceeds attempts");
             }
 
-            if (account.EmailVerificationToken != request.Token)
+            if (!IsEmailTokenValid(account.EmailVerificationToken, request.Token))
             {
                 account.VerifyAttempts += 1;
                 await PersistAccountAsync(account);
@@ -152,6 +156,15 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
         // Stored value is the hash of the code (the plaintext was only ever emailed); compare hashes.
         var stored = Encoding.UTF8.GetBytes(resetPassword.HashedToken);
         var provided = Encoding.UTF8.GetBytes(HashResetCode(providedCode ?? string.Empty));
+        return CryptographicOperations.FixedTimeEquals(stored, provided);
+    }
+
+    private static bool IsEmailTokenValid(string? storedHash, string? providedCode)
+    {
+        if (string.IsNullOrEmpty(storedHash) || string.IsNullOrEmpty(providedCode)) return false;
+
+        var stored = Encoding.UTF8.GetBytes(storedHash);
+        var provided = Encoding.UTF8.GetBytes(HashResetCode(providedCode));
         return CryptographicOperations.FixedTimeEquals(stored, provided);
     }
 
@@ -231,7 +244,7 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
             if (!IsResetCodeValid(resetPassword, request.token))
                 throw new UnauthorizedAccessException("Invalid or expired reset code");
 
-            account.Password = new PasswordHasher().HashPassword(request.newPassword);
+            account.Password = _passwordHasher.Hash(request.newPassword);
 
             // Invalidate the code so it cannot be replayed, atomically with the password change.
             resetPassword!.HashedToken = null;
@@ -261,15 +274,23 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
 
             if (account is null)
             {
-                new PasswordHasher().VerifyHashedPassword(DummyPasswordHash, request.Password);
+                _passwordHasher.Verify(DummyPasswordHash, request.Password, out _);
                 throw new UnauthorizedAccessException("invalid credentials");
             }
 
             if (account.VerifyAttempts > 5) throw new UnauthorizedAccessException("exceeds attempts");
 
-            if (new PasswordHasher().VerifyHashedPassword(account.Password, request.Password) == PasswordVerificationResult.Failed)
+            if (!_passwordHasher.Verify(account.Password, request.Password, out var rehashNeeded))
             {
                 throw new UnauthorizedAccessException("invalid credentials");
+            }
+
+            if (rehashNeeded)
+            {
+                // Upgrade on login: re-hash com o algoritmo atual (PBKDF2-HMACSHA512/100k)
+                // sem forçar o usuário a redefinir a senha.
+                account.Password = _passwordHasher.Hash(request.Password);
+                await _accountRepository.UpdateAsync(account);
             }
 
             if (account.IsActive == false) throw new UnauthorizedAccessException("account is not active");
