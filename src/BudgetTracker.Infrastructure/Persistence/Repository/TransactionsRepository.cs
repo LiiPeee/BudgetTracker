@@ -23,7 +23,8 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         t.CategoryId, t.TypeTransactionId, t.CreatedAt, t.UpdatedAt,
         ct.Id, ct.AccountId, ct.Name, ct.Email, ct.Phone, ct.Document,
         ct.IsActive, ct.TypeContactId, ct.CreatedAt, ct.UpdatedAt,
-        cat.Id, cat.Name, cat.Description, cat.IsActive, cat.CreatedAt, cat.UpdatedAt";
+        cat.Id, cat.Name, cat.Description, cat.IsActive, cat.CreatedAt, cat.UpdatedAt,
+        sub.Id, sub.Name, sub.Description, sub.IsActive, sub.CategoryId, sub.AccountId, sub.CreatedAt, sub.UpdatedAt";
 
     private const string TransactionWithContactColumns = @"
         t.Id, t.AccountId, t.Amount, t.Name, t.Description, t.Paid,
@@ -42,11 +43,12 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         var offset = (pageNumber - 1) * pageSize;
 
         var query = @"
-        SELECT {TransactionWithContactAndCategoryColumns}
+SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
+        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         WHERE t.AccountId = @AccountId AND tp.Name = @Type AND cat.Name = @Category 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year)
         ORDER BY t.Id DESC
@@ -70,11 +72,12 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
             new { AccountId = accountId, Month = month, Year = year, OffSet = offset, PageSize = pageSize, Type = type, Category = categoryName },
             _db._transaction);
 
-        var items = multi.Read<Transactions, Contact, Category, Transactions>(
-            (t, c, cat) =>
+        var items = multi.Read<Transactions, Contact, Category, SubCategory,Transactions>(
+            (t, c, cat, sub) =>
             {
                 t.Contact = c;
                 t.Category = cat;
+                t.SubCategory = sub;
                 return t;
             },
             splitOn: "Id,Id").ToList();
@@ -98,10 +101,11 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         var offset = (pageNumber - 1) * pageSize;
 
         var query = @"
-        SELECT {TransactionWithContactAndCategoryColumns}
+SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
+        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
         WHERE t.AccountId = @AccountId AND tp.Name = @Type 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year)
@@ -112,6 +116,7 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
+        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
         WHERE t.AccountId = @AccountId AND tp.Name = @Type 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year);";
@@ -126,11 +131,12 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
             new { AccountId = accountId, Month = month, Year = year, OffSet = offset, PageSize = pageSize, Type = type },
             _db._transaction);
 
-        var items = multi.Read<Transactions, Contact, Category, Transactions>(
-            (t, c, cat) =>
+        var items = multi.Read<Transactions, Contact, Category,SubCategory,  Transactions>(
+            (t, c, cat, sub) =>
             {
                 t.Contact = c;
                 t.Category = cat;
+                t.SubCategory = sub;
                 return t;
             },
             splitOn: "Id,Id").ToList();
@@ -154,10 +160,11 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         var offset = (pageNumber - 1) * pageSize;
 
         var query = @"
-        SELECT {TransactionWithContactAndCategoryColumns}
+SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
+        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         WHERE t.AccountId = @AccountId 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year)
         ORDER BY t.Id DESC
@@ -166,6 +173,7 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         SELECT COUNT(1)
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
+        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
         WHERE t.AccountId = @AccountId 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year);";
@@ -180,11 +188,12 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
             new { AccountId = accountId, Month = month, Year = year, OffSet = offset, PageSize = pageSize },
             _db._transaction);
 
-        var items = multi.Read<Transactions, Contact, Category, Transactions>(
-            (t, c, cat) =>
+        var items = multi.Read<Transactions, Contact, Category,SubCategory,Transactions>(
+            (t, c, cat,sub) =>
             {
                 t.Contact = c;
                 t.Category = cat;
+                t.SubCategory = sub;
                 return t;
             },
             splitOn: "Id,Id").ToList();
@@ -200,7 +209,6 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         };
     }
 
-
     public async Task<IPagedResult<Transactions>> FilterAllInstallmentsAsync(long accountId, long month, long year, string type, int pageNumber = 1)
     {
         const int pageSize = 10;
@@ -209,10 +217,11 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         var offset = (pageNumber - 1) * pageSize;
 
         var query = @"
-        SELECT {TransactionWithContactAndCategoryColumns}
+SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
+        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
         WHERE t.AccountId = @AccountId
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month
@@ -226,6 +235,7 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
+        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
         WHERE t.AccountId = @AccountId
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year)
@@ -242,11 +252,12 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
             new { AccountId = accountId, Month = month, Type = type, Year = year, RecurrenceId = (long)Recurrence.MONTHLY, OffSet = offset, PageSize = pageSize },
             _db._transaction);
 
-        var items = multi.Read<Transactions, Contact, Category, Transactions>(
-            (t, c, cat) =>
+        var items = multi.Read<Transactions, Contact, Category, SubCategory,Transactions>(
+            (t, c, cat, sub) =>
             {
                 t.Contact = c;
                 t.Category = cat;
+                t.SubCategory = sub;
                 return t;
             },
             splitOn: "Id,Id").ToList();
@@ -272,9 +283,10 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         var offset = (pageNumber - 1) * pageSize;
 
         var query = @"
-        SELECT {TransactionWithContactAndCategoryColumns}
+SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
+        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
         WHERE t.AccountId = @AccountId AND tp.Name = @Type 
@@ -301,11 +313,12 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
             new { AccountId = accountId, Month = month, Year = year, OffSet = offset, PageSize = pageSize, ContactId = contactId, Type = type },
             _db._transaction);
 
-        var items = multi.Read<Transactions, Contact, Category, Transactions>(
-            (t, c, cat) =>
+        var items = multi.Read<Transactions, Contact, Category, SubCategory, Transactions>(
+            (t, c, cat, sub) =>
             {
                 t.Contact = c;
                 t.Category = cat;
+                t.SubCategory = sub;
                 return t;
             },
             splitOn: "Id,Id").ToList();
@@ -419,9 +432,10 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         var offset = (pageNumber - 1) * pageSize;
 
         var query = @"
-        SELECT {TransactionWithContactAndCategoryColumns}
+SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
+        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
         WHERE t.AccountId = @AccountId 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year) AND t.Paid = @Paid
@@ -431,6 +445,7 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         SELECT COUNT(1)
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
+        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
         WHERE t.AccountId = @AccountId 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year) AND t.Paid = @Paid;";
@@ -445,11 +460,12 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
             new { AccountId = accountId, Month = month, Year = year, Paid = paid, OffSet = offset, PageSize = pageSize },
             _db._transaction);
 
-        var items = multi.Read<Transactions, Contact, Category, Transactions>(
-            (t, c, cat) =>
+        var items = multi.Read<Transactions, Contact, Category,SubCategory, Transactions>(
+            (t, c, cat,sub) =>
             {
                 t.Contact = c;
                 t.Category = cat;
+                t.SubCategory = sub;
                 return t;
             },
             splitOn: "Id,Id").ToList();

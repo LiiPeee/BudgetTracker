@@ -275,6 +275,7 @@ public class TransactionsAppService : ITransactionsAppService
                         Name = i.Contact.Name,
                         Phone = i.Contact.Phone
                     },
+                    SubCategory = i.SubCategory.Name,
                     Category = new CategoryOutput
                     {
                         Name = i.Category.Name,
