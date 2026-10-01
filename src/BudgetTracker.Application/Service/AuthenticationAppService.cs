@@ -35,36 +35,39 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
 
     public async Task<string?> SignUpAsync(CreateAccountRequestDto request)
     {
+        var existingAccount = await _accountRepository.GetByEmailAsync(request.Email);
+
+        if (existingAccount is not null)
+            return "We send a verification email for you";
+
+        if (string.IsNullOrWhiteSpace(request.Password)) throw new ArgumentException("password must not be empty");
+
+        if (request.Password.Length < 8) throw new ArgumentException("password must be at least 8 characters");
+
+        if (request.Password.Length > 20) throw new ArgumentException("password must be less than 20 characters");
+
+        if (request.Password.Any(char.IsUpper) == false) throw new ArgumentException("password must contain at least one uppercase letter");
+
+        if (request.Password.Any(char.IsLower) == false) throw new ArgumentException("password must contain at least one lowercase letter");
+
+        var hashPassword = new PasswordHasher().HashPassword(request.Password);
+
+        var account = new Account
+        {
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            Email = request.Email,
+            Password = hashPassword,
+            Balance = 0,
+            IsActive = false,
+            EmailVerified = false,
+            VerifiedAt = null,
+            EmailVerificationToken = _passwordHelper.GenerateVerificationCode(),
+            EmailVerificationTokenExpiry = DateTime.UtcNow.AddHours(4)
+        };
+
         try
         {
-            if (await _accountRepository.GetByEmailAsync(request.Email) != null) throw new ArgumentException("account is already exist");
-
-            if (string.IsNullOrWhiteSpace(request.Password)) throw new ArgumentException("password must not be empty");
-
-            if (request.Password.Length < 8) throw new ArgumentException("password must be at least 8 characters");
-
-            if (request.Password.Length > 20) throw new ArgumentException("password must be less than 20 characters");
-
-            if (request.Password.Any(char.IsUpper) == false) throw new ArgumentException("password must contain at least one uppercase letter");
-
-            if (request.Password.Any(char.IsLower) == false) throw new ArgumentException("password must contain at least one lowercase letter");
-
-            var hashPassword = new PasswordHasher().HashPassword(request.Password);
-
-            var account = new Account
-            {
-                FirstName = request.FirstName,
-                LastName = request.LastName,
-                Email = request.Email,
-                Password = hashPassword,
-                Balance = 0,
-                IsActive = false,
-                EmailVerified = false,
-                VerifiedAt = null,
-                EmailVerificationToken = _passwordHelper.GenerateVerificationCode(),
-                EmailVerificationTokenExpiry = DateTime.UtcNow.AddHours(4)
-            };
-
             _unitOfWork.BeginTransaction();
             var savedAccount = await _accountRepository.AddAsync(account);
 
