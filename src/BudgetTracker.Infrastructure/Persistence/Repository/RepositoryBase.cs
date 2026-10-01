@@ -33,12 +33,13 @@ public class RepositoryBase<T> : IRepositoryBase<T> where T : class
     public async Task<T> AddAsync(T entity)
     {
         var properties = GetProperties(entity);
-        var columns = string.Join(", ", properties.Keys);
-        var values = string.Join(", ", properties.Keys.Select(k => $"@{k}"));
+        properties.Remove("CreatedAt");
+        var columns = string.Join(", ", properties.Keys.Append("CreatedAt"));
+        var values = string.Join(", ", properties.Keys.Select(k => $"@{k}").Append("NOW()"));
 
         var query = $"INSERT INTO {_tableName} ({columns}) VALUES ({values}) RETURNING id";
 
-        EnsureConnectionOpen();
+        await EnsureConnectionOpenAsync();
 
         var id = await _db._connection.ExecuteScalarAsync<long>(query, entity, _db._transaction);
         var selectQuery = $"SELECT * FROM {_tableName} WHERE id = @Id";
@@ -50,7 +51,7 @@ public class RepositoryBase<T> : IRepositoryBase<T> where T : class
     {
         var query = $"SELECT * FROM {_tableName} WHERE id = @Id";
 
-        EnsureConnectionOpen();
+        await EnsureConnectionOpenAsync();
 
         return await _db._connection.QuerySingleOrDefaultAsync<T>(query, new { Id = id }, _db._transaction);
     }
@@ -62,7 +63,7 @@ public class RepositoryBase<T> : IRepositoryBase<T> where T : class
 
         var query = $"UPDATE {_tableName} SET {setClause} WHERE id = @Id";
 
-        EnsureConnectionOpen();
+        await EnsureConnectionOpenAsync();
 
         var result = await _db._connection.ExecuteAsync(query, entity, _db._transaction);
         return result > 0;
@@ -72,16 +73,15 @@ public class RepositoryBase<T> : IRepositoryBase<T> where T : class
     {
         var query = $"DELETE FROM {_tableName} WHERE id = @Id";
 
-        EnsureConnectionOpen();
+        await EnsureConnectionOpenAsync();
 
         var result = await _db._connection.ExecuteAsync(query, new { Id = id }, _db._transaction);
         return result > 0;
     }
 
-    protected void EnsureConnectionOpen()
+    protected async Task EnsureConnectionOpenAsync()
     {
-        if (_db._connection.State != ConnectionState.Open)
-            throw new InvalidOperationException("Database connection is not open.");
+        await _db.OpenAsync();
     }
 
     protected Dictionary<string, object> GetProperties(T entity)

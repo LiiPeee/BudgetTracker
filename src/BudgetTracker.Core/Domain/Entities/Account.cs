@@ -33,6 +33,9 @@ public class Account : BaseEntity
     [JsonIgnore]
     public long VerifyAttempts { get; set; } = 0;
 
+    [JsonIgnore]
+    public long LoginAttempts { get; set; } = 0;
+
     public bool IsActive { get; set; } = true;
     public List<Transactions> Transactions { get; set; } = new();
 }

@@ -14,10 +14,7 @@ public class AccountRepository : RepositoryBase<Account>, IAccountRepository
     {
         var query = @"SELECT * FROM Account WHERE Email = @Email";
 
-        if (_db._connection.State != ConnectionState.Open)
-        {
-            throw new Exception("connection lost");
-        }
+        await _db.OpenAsync();
 
         var acount = await _db._connection.QueryFirstOrDefaultAsync<Account>(query, new { Email = email }, _db._transaction);
         return acount;
@@ -27,7 +24,7 @@ public class AccountRepository : RepositoryBase<Account>, IAccountRepository
     {
         var query = @"SELECT * FROM Account WHERE EmailVerificationToken = @EmailVerificationToken";
 
-        if (_db._connection.State != ConnectionState.Open) throw new InvalidOperationException("Error of connection");
+        await _db.OpenAsync();
 
         var account = await _db._connection.QueryFirstOrDefaultAsync<Account>(query, new { EmailVerificationToken = token }, _db._transaction);
 
@@ -36,7 +33,7 @@ public class AccountRepository : RepositoryBase<Account>, IAccountRepository
 
     public async Task UpdateBalanceAtomicAsync(long accountId, decimal delta)
     {
-        if (_db._connection.State != ConnectionState.Open) throw new InvalidOperationException("Error of connection");
+        await _db.OpenAsync();
 
         const string query = @"UPDATE ""Account"" SET ""Balance"" = ""Balance"" + @Delta WHERE ""Id"" = @AccountId";
         await _db._connection.ExecuteAsync(query, new { Delta = delta, AccountId = accountId }, _db._transaction);

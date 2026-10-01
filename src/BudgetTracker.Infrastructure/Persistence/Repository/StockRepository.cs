@@ -14,7 +14,7 @@ namespace BudgetTracker.Infrastructure.Persistence.Repository
         public async Task<Stock?> GetByStockAndAccountAsync(long accountId, string ticker)
         {
             var query = $"SELECT * FROM {_tableName} WHERE AccountId = @AccountId AND Ticker = @Ticker";
-            EnsureConnectionOpen();
+            await EnsureConnectionOpenAsync();
             return await _db._connection.QuerySingleOrDefaultAsync<Stock>(
                 query, new { AccountId = accountId, Ticker = ticker }, _db._transaction);
                 

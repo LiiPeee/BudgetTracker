@@ -44,7 +44,7 @@ namespace BudgetTracker.Infrastructure.Services
 
         public async Task<List<StockMarketResponse>> GetStockByTickerAsync(List<string> ticker)
         {
-            var client = _httpClientFactory.CreateClient();
+            var client = _httpClientFactory.CreateClient("BrApi");
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {configuration["BrApi:Key"]}");
 
             var results = await Task.WhenAll(ticker.Select(tick => FetchPriceAsync(client, tick)));
@@ -54,7 +54,7 @@ namespace BudgetTracker.Infrastructure.Services
 
         public async Task<List<StockMarketResponse>> GetFundsByTickerAsync(List<string> ticker)
         {
-            var client = _httpClientFactory.CreateClient();
+            var client = _httpClientFactory.CreateClient("BrApi");
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {configuration["BrApi:Key"]}");
 
             var results = await Task.WhenAll(ticker.Select(tick => FetchPriceAsync(client, tick)));

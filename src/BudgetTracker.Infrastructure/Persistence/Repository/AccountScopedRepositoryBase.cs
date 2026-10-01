@@ -38,12 +38,13 @@ public class AccountScopedRepositoryBase<T> : IAccountScopedRepository<T>
     public async Task<T> AddAsync(T entity)
     {
         var properties = GetProperties(entity);
-        var columns = string.Join(", ", properties.Keys);
-        var values = string.Join(", ", properties.Keys.Select(k => $"@{k}"));
+        properties.Remove("CreatedAt");
+        var columns = string.Join(", ", properties.Keys.Append("CreatedAt"));
+        var values = string.Join(", ", properties.Keys.Select(k => $"@{k}").Append("NOW()"));
 
         var query = $"INSERT INTO {_tableName} ({columns}) VALUES ({values}) RETURNING id";
 
-        EnsureConnectionOpen();
+        await EnsureConnectionOpenAsync();
 
         var id = await _db._connection.ExecuteScalarAsync<long>(query, entity, _db._transaction);
         var selectQuery = $"SELECT * FROM {_tableName} WHERE id = @Id";
@@ -55,7 +56,7 @@ public class AccountScopedRepositoryBase<T> : IAccountScopedRepository<T>
     {
         var query = $"SELECT * FROM {_tableName} WHERE id = @Id AND AccountId = @AccountId";
 
-        EnsureConnectionOpen();
+        await EnsureConnectionOpenAsync();
 
         return await _db._connection.QuerySingleOrDefaultAsync<T>(
             query, new { Id = id, AccountId = accountId }, _db._transaction);
@@ -67,7 +68,7 @@ public class AccountScopedRepositoryBase<T> : IAccountScopedRepository<T>
         // exist, fail loudly instead of silently returning a partial result.
         var query = $"SELECT * FROM {_tableName} WHERE AccountId = @AccountId LIMIT {MaxRows + 1}";
 
-        EnsureConnectionOpen();
+        await EnsureConnectionOpenAsync();
 
         var result = (await _db._connection.QueryAsync<T>(
             query, new { AccountId = accountId }, _db._transaction)).ToList();
@@ -86,7 +87,7 @@ public class AccountScopedRepositoryBase<T> : IAccountScopedRepository<T>
 
         var query = $"UPDATE {_tableName} SET {setClause} WHERE id = @Id AND AccountId = @AccountId";
 
-        EnsureConnectionOpen();
+        await EnsureConnectionOpenAsync();
 
         var result = await _db._connection.ExecuteAsync(query, entity, _db._transaction);
         return result > 0;
@@ -96,17 +97,16 @@ public class AccountScopedRepositoryBase<T> : IAccountScopedRepository<T>
     {
         var query = $"DELETE FROM {_tableName} WHERE id = @Id AND AccountId = @AccountId";
 
-        EnsureConnectionOpen();
+        await EnsureConnectionOpenAsync();
 
         var result = await _db._connection.ExecuteAsync(
             query, new { Id = id, AccountId = accountId }, _db._transaction);
         return result > 0;
     }
 
-    protected void EnsureConnectionOpen()
+    protected async Task EnsureConnectionOpenAsync()
     {
-        if (_db._connection.State != ConnectionState.Open)
-            throw new InvalidOperationException("Database connection is not open.");
+        await _db.OpenAsync();
     }
 
     protected Dictionary<string, object> GetProperties(T entity)

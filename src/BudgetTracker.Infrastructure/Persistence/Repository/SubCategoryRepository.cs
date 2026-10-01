@@ -22,14 +22,9 @@ namespace BudgetTracker.Infrastructure.Persistence.Repository
         {
             var query = @"SELECT * FROM SubCategory WHERE Name = @Name AND AccountId = @AccountId AND CategoryId = @CategoryId ORDER BY Id LIMIT 1";
 
-            if (_db._connection.State == ConnectionState.Open)
-            {
-                return await _db._connection.QueryFirstOrDefaultAsync<SubCategory>(query, new { Name = name, AccountId = accountId, CategoryId = categoryId }, transaction: _db._transaction);
-            }
-            else
-            {
-                throw new Exception("lost connection");
-            }
+            await _db.OpenAsync();
+
+            return await _db._connection.QueryFirstOrDefaultAsync<SubCategory>(query, new { Name = name, AccountId = accountId, CategoryId = categoryId }, transaction: _db._transaction);
         }
     }
 }

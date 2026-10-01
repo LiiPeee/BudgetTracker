@@ -6,7 +6,6 @@ using BudgetTracker.Core.Domain.Service;
 using BudgetTracker.Core.Domain.UnitOfWork;
 using BudgetTracker.Core.Infrastructure.Repository;
 using BudgetTracker.Core.Infrastructure.Services;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 namespace BudgetTracker.Application.Service

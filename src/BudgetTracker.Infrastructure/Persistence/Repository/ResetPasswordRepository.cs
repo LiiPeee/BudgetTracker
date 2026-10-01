@@ -19,10 +19,7 @@ namespace BudgetTracker.Infrastructure.Persistence.Repository
 
             var parameters = new { AccountId = accountId };
 
-            if (_db._connection.State != ConnectionState.Open)
-            {
-                throw new Exception("connection lost");
-            }
+            await _db.OpenAsync();
 
             var result = await _db._connection.QueryFirstOrDefaultAsync<ResetPassword>(query, parameters);
 

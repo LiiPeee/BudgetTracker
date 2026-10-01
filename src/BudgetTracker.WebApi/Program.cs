@@ -30,6 +30,10 @@ builder.Services.AddScoped<BudgetTracker.WebApi.Services.IExpiredTokenValidator,
 // endpoints [Authorize] validem o Bearer token e retornem 401 em falha. Cookie/Google
 // ficam registrados (para um eventual fluxo de login Google), mas NÃO como padrão —
 // senão o challenge cairia num redirect 302 para o Google em vez de 401.
+var jwtToken = builder.Configuration["Jwt:Token"];
+if (string.IsNullOrWhiteSpace(jwtToken) || jwtToken.Length < 32)
+    throw new InvalidOperationException("Jwt:Token must be configured with at least 32 characters.");
+
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -46,7 +50,7 @@ builder.Services.AddAuthentication(options =>
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Token"]!)),
+                Encoding.UTF8.GetBytes(jwtToken)),
             ClockSkew = TimeSpan.Zero
         };
     })
@@ -178,6 +182,13 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+if (!app.Environment.IsDevelopment()
+    && string.IsNullOrWhiteSpace(builder.Configuration["FrontEndUrl"])
+    && string.IsNullOrWhiteSpace(builder.Configuration["BackEndUrl"]))
+{
+    app.Logger.LogWarning("CORS: FrontEndUrl/BackEndUrl não configurados — a política FrontendProd não permitirá nenhuma origem.");
+}
+
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
@@ -189,6 +200,13 @@ if (enableSwagger)
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
 
 if (app.Environment.IsDevelopment())
 {

@@ -22,7 +22,7 @@ namespace BudgetTracker.Core.Domain.Models.Request.Stock
 
         public string? FixedIncomeType { get; set; }
 
-        public required long Quantity { get; set; }
+        public required decimal Quantity { get; set; }
 
         public string? Description { get; set; }
 
