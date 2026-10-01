@@ -48,23 +48,24 @@ public class TransactionsAppService : ITransactionsAppService
             _unitOfWork.BeginTransaction();
 
             var contact = await _contactRepository.GetByNameAsync(accountId, transactionRequest.ContactName);
-            var category = EnumHelper.Category(transactionRequest.CategoryName);
+            var category = await _categoryRepository.GetByNameAsync(transactionRequest.CategoryName)
+                ?? throw new KeyNotFoundException("we cannot find category for this transaction");
 
             if (contact is null)
             {
                 throw new KeyNotFoundException("we cannot find contact or category for this transaction");
             }
 
-            var subCategory = await _subCategoryRepository.GetByNameAsync(accountId, transactionRequest.SubCategoryName, category)
+            var subCategory = await _subCategoryRepository.GetByNameAsync(accountId, transactionRequest.SubCategoryName, category.Id)
                 ?? await _subCategoryRepository.AddAsync(new SubCategory
-                { Name = transactionRequest.SubCategoryName, IsActive = true, CategoryId = category, AccountId = accountId });
+                { Name = transactionRequest.SubCategoryName, IsActive = true, CategoryId = category.Id, AccountId = accountId });
 
             var recurrenceId = (long)transactionRequest.Recurrence;
             var typeTransactionId = (long)transactionRequest.TypeTransaction;
 
             if (transactionRequest.NumberOfInstallment > 0)
             {
-                return await CreateInstallemntsAsync(transactionRequest, category, contact.Id, recurrenceId, typeTransactionId, accountId, subCategory.Id);
+                return await CreateInstallemntsAsync(transactionRequest, category.Id, contact.Id, recurrenceId, typeTransactionId, accountId, subCategory.Id);
             }
 
             var competenceDate = recurrenceId == (long)Recurrence.OCCASIONALLY
@@ -76,7 +77,7 @@ public class TransactionsAppService : ITransactionsAppService
                 AccountId = accountId,
                 Amount = transactionRequest.Amount,
                 Name = transactionRequest.TransactionName,
-                CategoryId = category,
+                CategoryId = category.Id,
                 ContactId = contact.Id,
                 SubCategoryId = subCategory.Id,
                 Description = transactionRequest.Description,
@@ -113,16 +114,17 @@ public class TransactionsAppService : ITransactionsAppService
             var contact = await _contactRepository.GetByNameAsync(accountId, transactionRequest.ContactName)
                 ?? throw new KeyNotFoundException("we cannot find contact for this transaction");
 
-            var category = EnumHelper.Category(transactionRequest.CategoryName);
+            var category = await _categoryRepository.GetByNameAsync(transactionRequest.CategoryName)
+                ?? throw new KeyNotFoundException("we cannot find category for this transaction");
 
             _unitOfWork.BeginTransaction();
 
-            var subCategory = await _subCategoryRepository.GetByNameAsync(accountId, transactionRequest.SubCategoryName, category)
+            var subCategory = await _subCategoryRepository.GetByNameAsync(accountId, transactionRequest.SubCategoryName, category.Id)
                 ?? await _subCategoryRepository.AddAsync(new SubCategory
-                { Name = transactionRequest.SubCategoryName, IsActive = true, CategoryId = category, AccountId = accountId });
+                { Name = transactionRequest.SubCategoryName, IsActive = true, CategoryId = category.Id, AccountId = accountId });
 
             existing.Amount = transactionRequest.Amount;
-            existing.CategoryId = category;
+            existing.CategoryId = category.Id;
             existing.ContactId = contact.Id;
             existing.SubCategoryId = subCategory.Id;
             existing.TypeTransactionId = (long)transactionRequest.TypeTransaction;
