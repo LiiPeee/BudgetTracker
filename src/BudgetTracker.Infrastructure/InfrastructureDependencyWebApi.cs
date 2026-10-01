@@ -15,7 +15,18 @@ public static class InfrastructureDependencyWebApi
     {
         services.AddHttpClient("Brevo", client =>
         {
+            client.Timeout = TimeSpan.FromSeconds(30);
             client.DefaultRequestHeaders.Add("api-key", configuration["Brevo:ApiKey"]);
+        });
+
+        services.AddHttpClient("BrApi", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
+
+        services.AddHttpClient("Bacen", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
         });
 
         return services

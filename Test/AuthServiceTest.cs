@@ -10,6 +10,7 @@ using BudgetTracker.Core.Infrastructure.Services;
 using Microsoft.AspNet.Identity;
 using Microsoft.Extensions.Configuration;
 using Moq;
+using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -149,12 +150,19 @@ public class AuthServiceTest
     }
 
     [Test]
-    public async Task SignUpAsync_PasswordTooLong_ThrowsArgumentException()
+    public void SignUpRequest_PasswordTooLong_FailsDtoValidation()
     {
-        var request = BuildSignUpRequest(password: "AbcdefghijKlmno12345!");
-        _accountRepo.Setup(r => r.GetByEmailAsync(It.IsAny<string>())).ReturnsAsync((Account?)null);
+        // O serviço não impõe mais limite máximo (item 21 do relatório); a validação
+        // de 128 caracteres fica no DTO, aplicada pelo ModelState na API.
+        var request = BuildSignUpRequest(password: new string('a', 130) + "A1!");
 
-        Assert.ThrowsAsync<ArgumentException>(() => _service.SignUpAsync(request));
+        var context = new ValidationContext(request);
+        var results = new List<ValidationResult>();
+
+        var isValid = Validator.TryValidateObject(request, context, results, validateAllProperties: true);
+
+        Assert.That(isValid, Is.False);
+        Assert.That(results, Has.Some.Matches<ValidationResult>(r => r.ErrorMessage!.Contains("128")));
     }
 
     [Test]

@@ -93,7 +93,7 @@ public class TransactionsAppService : ITransactionsAppService
 
             return new List<Transactions> { savedTransaction };
         }
-        catch (Exception ex)
+        catch
         {
             _unitOfWork.Rollback();
             throw;
@@ -178,7 +178,7 @@ public class TransactionsAppService : ITransactionsAppService
 
             _unitOfWork.Commit();
         }
-        catch (Exception ex)
+        catch
         {
             _unitOfWork.Rollback();
             throw;
@@ -216,7 +216,7 @@ public class TransactionsAppService : ITransactionsAppService
 
             return filter;
         }
-        catch (Exception ex)
+        catch
         {
             throw;
         }
@@ -229,7 +229,7 @@ public class TransactionsAppService : ITransactionsAppService
         {
             return await _transactionRepository.FilterExpenseMonthAndYearAsync(accountId, year, month);
         }
-        catch (Exception ex)
+        catch
         {
             throw;
         }
@@ -242,7 +242,7 @@ public class TransactionsAppService : ITransactionsAppService
         {
             return await _transactionRepository.FilterIncomeMonthAndYearAsync(accountId, year, month);
         }
-        catch (Exception ex)
+        catch
         {
             throw;
         }
@@ -294,7 +294,7 @@ public class TransactionsAppService : ITransactionsAppService
                 Items = filter
             };
         }
-        catch (Exception ex)
+        catch
         {
             throw;
         }
@@ -344,7 +344,7 @@ public class TransactionsAppService : ITransactionsAppService
                 Items = filter
             };
         }
-        catch (Exception ex)
+        catch
         {
             throw;
         }
@@ -394,7 +394,7 @@ public class TransactionsAppService : ITransactionsAppService
                 Items = filter
             };
         }
-        catch (Exception ex)
+        catch
         {
             throw;
         }
@@ -443,7 +443,7 @@ public class TransactionsAppService : ITransactionsAppService
                 Items = filter
             };
         }
-        catch (Exception ex)
+        catch
         {
             throw;
         }
@@ -503,7 +503,7 @@ public class TransactionsAppService : ITransactionsAppService
 
             return totalIncome - totalExpense;
         }
-        catch (Exception ex)
+        catch
         {
             throw;
         }
@@ -547,7 +547,7 @@ public class TransactionsAppService : ITransactionsAppService
 
             return transactions;
         }
-        catch (Exception ex)
+        catch
         {
             _unitOfWork.Rollback();
             throw;

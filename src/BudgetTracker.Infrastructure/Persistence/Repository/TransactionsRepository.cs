@@ -62,10 +62,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
         WHERE t.AccountId = @AccountId AND tp.Name = @Type AND cat.Name = @Category 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year);";
 
-        if (_db._connection.State != ConnectionState.Open)
-        {
-            throw new Exception("connection lost");
-        }
+        await _db.OpenAsync();
 
         using var multi = await _db._connection.QueryMultipleAsync(
             query,
@@ -121,10 +118,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
         WHERE t.AccountId = @AccountId AND tp.Name = @Type 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year);";
 
-        if (_db._connection.State != ConnectionState.Open)
-        {
-            throw new Exception("connection lost");
-        }
+        await _db.OpenAsync();
 
         using var multi = await _db._connection.QueryMultipleAsync(
             query,
@@ -178,10 +172,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
         WHERE t.AccountId = @AccountId 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year);";
 
-        if (_db._connection.State != ConnectionState.Open)
-        {
-            throw new Exception("connection lost");
-        }
+        await _db.OpenAsync();
 
         using var multi = await _db._connection.QueryMultipleAsync(
             query,
@@ -242,10 +233,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
             AND t.RecurrenceId = @RecurrenceId
             AND tp.Name = @Type;";
 
-        if (_db._connection.State != ConnectionState.Open)
-        {
-            throw new Exception("connection lost");
-        }
+        await _db.OpenAsync();
 
         using var multi = await _db._connection.QueryMultipleAsync(
             query,
@@ -303,10 +291,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
         WHERE t.AccountId = @AccountId AND tp.Name = @Type 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year) AND ct.Id = @ContactId ;";
 
-        if (_db._connection.State != ConnectionState.Open)
-        {
-            throw new Exception("connection lost");
-        }
+        await _db.OpenAsync();
 
         using var multi = await _db._connection.QueryMultipleAsync(
             query,
@@ -343,8 +328,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year)
             AND t.TypeTransactionId = @TypeId";
 
-        if (_db._connection.State != ConnectionState.Open)
-            throw new Exception("connection lost");
+        await _db.OpenAsync();
 
         return await _db._connection.ExecuteScalarAsync<decimal>(query, new { AccountId = accountId, Month = month, Year = year, TypeId = (long)TypeTransactions.EXPENSE }, _db._transaction);
     }
@@ -358,8 +342,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year)
             AND t.TypeTransactionId = @TypeId";
 
-        if (_db._connection.State != ConnectionState.Open)
-            throw new Exception("connection lost");
+        await _db.OpenAsync();
 
         return await _db._connection.ExecuteScalarAsync<decimal>(query, new { AccountId = accountId, Month = month, Year = year, TypeId = (long)TypeTransactions.INCOME }, _db._transaction);
     }
@@ -372,29 +355,23 @@ SELECT {TransactionWithContactAndCategoryColumns}
         WHERE t.AccountId = @AccountId 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year)";
 
-        if (_db._connection.State == ConnectionState.Open)
-        {
-            var result = await _db._connection.QueryAsync<Transactions, Contact, Transactions>(query, (t, c) =>
-            {
-                t.Contact = c;
-                return t;
-            },
-            new { AccountId = accountId, Month = month, Year = year }, transaction: _db._transaction, splitOn: "Id");
+        await _db.OpenAsync();
 
-            return result.ToList();
-        }
-        else
+        var result = await _db._connection.QueryAsync<Transactions, Contact, Transactions>(query, (t, c) =>
         {
-            throw new Exception("connection lost");
-        }
+            t.Contact = c;
+            return t;
+        },
+        new { AccountId = accountId, Month = month, Year = year }, transaction: _db._transaction, splitOn: "Id");
+
+        return result.ToList();
     }
 
     public async Task<bool> MarkAsPaidAsync(long id, long accountId, bool paid)
     {
         const string query = @"UPDATE Transactions SET Paid = @Paid WHERE Id = @Id AND AccountId = @AccountId";
 
-        if (_db._connection.State != ConnectionState.Open)
-            throw new Exception("connection lost");
+        await _db.OpenAsync();
 
         var rows = await _db._connection.ExecuteAsync(query, new { Id = id, AccountId = accountId, Paid = paid }, _db._transaction);
         return rows > 0;
@@ -410,8 +387,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
             AND t.TypeTransactionId = @ExpenseType
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year)";
 
-        if (_db._connection.State != ConnectionState.Open)
-            throw new Exception("connection lost");
+        await _db.OpenAsync();
 
         return await _db._connection.ExecuteScalarAsync<decimal>(query, new
         {
@@ -450,10 +426,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
         WHERE t.AccountId = @AccountId 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year) AND t.Paid = @Paid;";
 
-        if (_db._connection.State != ConnectionState.Open)
-        {
-            throw new Exception("connection lost");
-        }
+        await _db.OpenAsync();
 
         using var multi = await _db._connection.QueryMultipleAsync(
             query,

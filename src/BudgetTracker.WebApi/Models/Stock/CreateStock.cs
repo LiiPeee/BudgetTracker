@@ -13,7 +13,7 @@ namespace BudgetTracker.WebApi.Models.Stock
 
         public required decimal Price { get; set; }
 
-        public long Quantity { get; set; }
+        public decimal Quantity { get; set; }
 
         public string? Description { get; set; }
         public bool IsStock { get; set; }

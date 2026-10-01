@@ -15,24 +15,18 @@ public class ContactRepository : AccountScopedRepositoryBase<Contact>, IContactR
     {
         var query = "SELECT * FROM Contact WHERE Name = @Name AND AccountId = @AccountId AND IsActive = true ORDER BY Id LIMIT 1";
 
-        if(_db._connection.State == ConnectionState.Open)
-            return await _db._connection.QueryFirstOrDefaultAsync<Contact>(query, new { Name = name, AccountId = accountId }, transaction: _db._transaction);
-        else
-        {
-            throw new Exception("lost connection");
-        }
+        await _db.OpenAsync();
+
+        return await _db._connection.QueryFirstOrDefaultAsync<Contact>(query, new { Name = name, AccountId = accountId }, transaction: _db._transaction);
     }
     
     public async Task<List<Contact?>> GetByIdAccount(long accountId)
     {
         var query = @"SELECT * FROM Contact WHERE AccountId = @AccountId AND IsActive = true";
 
-        if(_db._connection.State == ConnectionState.Open)
-            return (await _db._connection.QueryAsync<Contact>(query, new { AccountId = accountId }, transaction: _db._transaction)).ToList();
-        else
-        {
-            throw new Exception("lost connection");
-        }
+        await _db.OpenAsync();
+
+        return (await _db._connection.QueryAsync<Contact>(query, new { AccountId = accountId }, transaction: _db._transaction)).ToList();
     }
 }
 

@@ -24,7 +24,7 @@ namespace BudgetTracker.Infrastructure.Services
 
         public async Task<IEnumerable<BacenOutPut>> GetHistoryCdiAsync(string from, string to)
         {
-            var client = _httpClientFactory.CreateClient();
+            var client = _httpClientFactory.CreateClient("Bacen");
 
             var response = await client.GetAsync($"{_urlBase}/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial={from}&dataFinal={to}");
 

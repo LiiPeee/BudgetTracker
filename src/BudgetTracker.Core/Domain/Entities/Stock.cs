@@ -24,6 +24,6 @@
 
         public string Avarage { get; set; }
 
-        public long Quantity { get; set; }
+        public decimal Quantity { get; set; }
     }
 }

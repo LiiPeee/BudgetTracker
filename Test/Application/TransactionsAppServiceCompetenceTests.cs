@@ -115,14 +115,13 @@ public class TransactionsAppServiceCompetenceTests
     }
 
     [Test]
-    public async Task Dado_QualquerRecorrencia_Quando_Criar_Entao_CreatedAt_PermaneceMesAtual()
+    public async Task Dado_QualquerRecorrencia_Quando_Criar_Entao_CreatedAt_NaoEhTocadoPeloServico()
     {
-        var now = DateTime.UtcNow;
-
         await _service.CreateAsync(AccountId, Request(Recurrence.OCCASIONALLY));
 
-        // CreatedAt is audit-only — never pushed forward, even for OCCASIONALLY.
-        Assert.That(_saved.Single().CreatedAt.Month, Is.EqualTo(now.Month));
+        // CreatedAt é audit-only e agora é definido pelo banco (NOW() no INSERT),
+        // nunca pelo serviço — nem mesmo para OCCASIONALLY.
+        Assert.That(_saved.Single().CreatedAt, Is.EqualTo(default(DateTime)));
     }
 
     [Test]

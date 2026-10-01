@@ -12,7 +12,7 @@ public class GetAllStockResponse
 
     public decimal? CdiRate { get; set; }
 
-    public long Quantity { get; set; }
+    public decimal Quantity { get; set; }
 
     public string Percentage { get; set; }
 

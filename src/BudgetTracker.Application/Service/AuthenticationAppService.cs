@@ -45,8 +45,6 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
 
         if (request.Password.Length < 8) throw new ArgumentException("password must be at least 8 characters");
 
-        if (request.Password.Length > 20) throw new ArgumentException("password must be less than 20 characters");
-
         if (request.Password.Any(char.IsUpper) == false) throw new ArgumentException("password must contain at least one uppercase letter");
 
         if (request.Password.Any(char.IsLower) == false) throw new ArgumentException("password must contain at least one lowercase letter");
@@ -280,16 +278,27 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
 
             if (account.VerifyAttempts > 5) throw new UnauthorizedAccessException("exceeds attempts");
 
+            if (account.LoginAttempts >= 5) throw new UnauthorizedAccessException("account temporarily locked due to too many failed login attempts");
+
             if (!_passwordHasher.Verify(account.Password, request.Password, out var rehashNeeded))
             {
+                account.LoginAttempts += 1;
+                await _accountRepository.UpdateAsync(account);
                 throw new UnauthorizedAccessException("invalid credentials");
             }
+
+            var hadFailedAttempts = account.LoginAttempts > 0;
+            account.LoginAttempts = 0;
 
             if (rehashNeeded)
             {
                 // Upgrade on login: re-hash com o algoritmo atual (PBKDF2-HMACSHA512/100k)
                 // sem forçar o usuário a redefinir a senha.
                 account.Password = _passwordHasher.Hash(request.Password);
+                await _accountRepository.UpdateAsync(account);
+            }
+            else if (hadFailedAttempts)
+            {
                 await _accountRepository.UpdateAsync(account);
             }
 

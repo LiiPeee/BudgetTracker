@@ -11,15 +11,23 @@ namespace BudgetTracker.Infrastructure.Persistence.Repository
         public IDbConnection _connection { get; }
         public IDbTransaction? _transaction { get; set; }
 
-        public string _connectrionString { get; set; }
+        public string _connectionString { get; set; }
 
         private bool _disposed;
+        private bool _opened;
 
         public DbSession(IConfiguration configuration)
         {
-            _connectrionString = configuration.GetConnectionString("BudgetTracker");
-            _connection = new NpgsqlConnection(_connectrionString);
-            _connection.Open();
+            _connectionString = configuration.GetConnectionString("BudgetTracker");
+            _connection = new NpgsqlConnection(_connectionString);
+        }
+
+        public async Task OpenAsync(CancellationToken cancellationToken = default)
+        {
+            if (_opened) return;
+
+            await ((NpgsqlConnection)_connection).OpenAsync(cancellationToken);
+            _opened = true;
         }
 
         public void Dispose()
@@ -42,5 +50,3 @@ namespace BudgetTracker.Infrastructure.Persistence.Repository
         }
     }
 }
-
-

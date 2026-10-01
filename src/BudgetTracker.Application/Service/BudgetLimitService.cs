@@ -52,9 +52,8 @@ namespace BudgetTracker.Application.Service
 
                 return budget;
             }
-            catch (Exception ex)
+            catch
             {
-                _unitOfWork.Rollback();
                 throw;
             }
         }

@@ -32,10 +32,7 @@ namespace BudgetTracker.Infrastructure.Persistence.Repository
                 FROM BudgetLimit bt
                 WHERE bt.AccountId = @AccountId;";
 
-            if (_db._connection.State != ConnectionState.Open)
-            {
-                throw new Exception("connection lost");
-            }
+            await _db.OpenAsync();
 
             using var multi = await _db._connection.QueryMultipleAsync(
                 query,
@@ -68,10 +65,7 @@ namespace BudgetTracker.Infrastructure.Persistence.Repository
             INNER JOIN Account act ON act.Id = bt.AccountId
             WHERE ct.Id = @CategoryId AND act.Id = @AccountId";
 
-            if (_db._connection.State != ConnectionState.Open)
-            {
-                throw new Exception("connection lost");
-            }
+            await _db.OpenAsync();
 
             var result = (await _db._connection.QueryAsync<BudgetLimit, Category, Account, BudgetLimit>(query, (bt, c, a) =>
             {
