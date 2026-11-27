@@ -42,7 +42,7 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         pageNumber = Math.Max(1, pageNumber);
         var offset = (pageNumber - 1) * pageSize;
 
-        var query = @"
+        var query = $@"
 SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
@@ -59,6 +59,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
         INNER JOIN Contact ct ON t.ContactId = ct.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
+        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         WHERE t.AccountId = @AccountId AND tp.Name = @Type AND cat.Name = @Category 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year);";
 
@@ -97,7 +98,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
         pageNumber = Math.Max(1, pageNumber);
         var offset = (pageNumber - 1) * pageSize;
 
-        var query = @"
+        var query = $@"
 SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
@@ -153,7 +154,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
         pageNumber = Math.Max(1, pageNumber);
         var offset = (pageNumber - 1) * pageSize;
 
-        var query = @"
+        var query = $@"
 SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
@@ -207,7 +208,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
         pageNumber = Math.Max(1, pageNumber);
         var offset = (pageNumber - 1) * pageSize;
 
-        var query = @"
+        var query = $@"
 SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
@@ -270,7 +271,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
         pageNumber = Math.Max(1, pageNumber);
         var offset = (pageNumber - 1) * pageSize;
 
-        var query = @"
+        var query = $@"
 SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id
@@ -288,6 +289,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
         INNER JOIN Contact ct ON t.ContactId = ct.Id
         INNER JOIN Category cat ON t.CategoryId = cat.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
+        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         WHERE t.AccountId = @AccountId AND tp.Name = @Type 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year) AND ct.Id = @ContactId ;";
 
@@ -349,7 +351,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
 
     public async Task<List<Transactions>> FilterExpenseMonthWithContactAsync(long accountId, long year, long month)
     {
-        var query = @"SELECT {TransactionWithContactColumns}
+        var query = $@"SELECT {TransactionWithContactColumns}
         FROM Transactions t 
         LEFT JOIN Contact ct ON t.ContactId = ct.Id
         WHERE t.AccountId = @AccountId 
@@ -407,7 +409,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
         pageNumber = Math.Max(1, pageNumber);
         var offset = (pageNumber - 1) * pageSize;
 
-        var query = @"
+        var query = $@"
 SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
         INNER JOIN Contact ct ON t.ContactId = ct.Id

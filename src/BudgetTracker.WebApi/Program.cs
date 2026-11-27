@@ -6,6 +6,7 @@ using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -129,17 +130,23 @@ builder.Services.Configure<IpRateLimitOptions>(options =>
     options.EnableEndpointRateLimiting = true;
     options.StackBlockedRequests = false;
     options.HttpStatusCode = 429;
-    options.RealIpHeader = "X-Real-IP";
+    // O IP do cliente vem do UseForwardedHeaders (Connection.RemoteIpAddress). Ler um header
+    // como X-Real-IP direto da requisição permitiria forjá-lo para escapar do limite.
+    options.RealIpHeader = null;
     options.ClientIdHeader = "X-ClientId";
     options.GeneralRules =
     [
-        new RateLimitRule
-        {
-            Endpoint = "*",
-            Period = "10s",
-            Limit = 5
-        }
+        new RateLimitRule { Endpoint = "*", Period = "1m", Limit = 100 },
+        // Limite rígido contra força bruta nas rotas de autenticação.
+        new RateLimitRule { Endpoint = "*:/api/auth/*", Period = "10s", Limit = 5 }
     ];
+});
+
+// Atrás do proxy (Render) a conexão chega por loopback; sem isto todos os usuários
+// compartilham a mesma cota de rate limit.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
 });
 
 builder.Services.AddHsts(options =>
@@ -189,6 +196,7 @@ if (!app.Environment.IsDevelopment()
     app.Logger.LogWarning("CORS: FrontEndUrl/BackEndUrl não configurados — a política FrontendProd não permitirá nenhuma origem.");
 }
 
+app.UseForwardedHeaders();
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
