@@ -12,7 +12,8 @@ public class AccountRepository : RepositoryBase<Account>, IAccountRepository
     }
     public async Task<Account?> GetByEmailAsync(string email)
     {
-        var query = @"SELECT * FROM Account WHERE Email = @Email";
+        // Sem diferenciar maiúsculas; o idêntico tem prioridade se houver cadastros antigos repetidos.
+        var query = @"SELECT * FROM Account WHERE LOWER(Email) = LOWER(@Email) ORDER BY (Email = @Email) DESC, Id LIMIT 1";
 
         await _db.OpenAsync();
 

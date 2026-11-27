@@ -2,9 +2,16 @@ using BudgetTracker.Application.Dtos.Request;
 using BudgetTracker.Application.Service;
 using BudgetTracker.Core.Domain.Dtos.Request.Transaction;
 using BudgetTracker.Core.Domain.Enum;
+using BudgetTracker.Core.Domain.Models.Request.BudgetLimit;
+using BudgetTracker.Core.Domain.Models.Request.Contact;
+using BudgetTracker.Core.Domain.Models.Request.Stock;
+using BudgetTracker.Core.Domain.Models.Request.Transaction;
+using BudgetTracker.Core.Infrastructure.OutPut;
+using BudgetTracker.Core.Infrastructure.Services;
 using BudgetTracker.Infrastructure.Persistence.Repository;
 using Dapper;
 using Microsoft.Extensions.Configuration;
+using Moq;
 using Npgsql;
 
 namespace Test.Integration;
@@ -27,7 +34,16 @@ public class WriteFlowsIntegrationTest
         CREATE TABLE Transactions(Id bigserial PRIMARY KEY, AccountId bigint, Amount numeric, Name text, Description text, Paid bool,
             NumberOfInstallment bigint, DateOfInstallment timestamp, CompetenceDate timestamp, QuantityInstallment text, RecurrenceId bigint,
             ContactId bigint, SubCategoryId bigint, CategoryId bigint, TypeTransactionId bigint, CreatedAt timestamp, UpdatedAt timestamp);
-        INSERT INTO Category(Name, IsActive, CreatedAt) VALUES ('MORADIA', true, now());
+        CREATE TABLE Account(Id bigserial PRIMARY KEY, FirstName text, LastName text, Email text, Password text, Balance numeric, Role text,
+            RefreshToken text, RefreshTokenExpiryTime timestamptz, EmailVerified bool, VerifiedAt timestamp, EmailVerificationToken text,
+            EmailVerificationTokenExpiry timestamp, VerifyAttempts bigint DEFAULT 0, LoginAttempts bigint DEFAULT 0, IsActive bool, CreatedAt timestamp, UpdatedAt timestamp);
+        CREATE TABLE BudgetLimit(Id bigserial PRIMARY KEY, IsLimit bool, Month int, Year int, CategoryId bigint, Percentage numeric, AccountId bigint, LimitAmount numeric, CreatedAt timestamp, UpdatedAt timestamp);
+        CREATE TABLE Stock(Id bigserial PRIMARY KEY, AccountId bigint, Ticker text, Description text, Title text, IsStock bool, FixedIncomeType text,
+            CdiRate numeric, InvestmentDate timestamp, PriceBuyed numeric, PriceMarket numeric DEFAULT 0, Avarage text, Quantity numeric, CreatedAt timestamp, UpdatedAt timestamp);
+        CREATE TABLE TypeTransaction(Id bigint PRIMARY KEY, Name text);
+        INSERT INTO TypeTransaction VALUES (1, 'EXPENSE'), (2, 'INCOME');
+        INSERT INTO Category(Name, IsActive, CreatedAt) VALUES ('MORADIA', true, now()), ('Alimentação', true, now()), ('Bens Pessoais', true, now());
+        INSERT INTO Account(Email, IsActive, CreatedAt) VALUES ('Pessoa@Example.com', true, now());
         """;
 
     private string _schemaName = null!;
@@ -79,6 +95,145 @@ public class WriteFlowsIntegrationTest
             new SubCategoryRepository(session),
             new AccountRepository(session),
             new UnitOfWork(session)));
+    }
+
+    private static CreateContactRequest NewContact(string name) => new()
+    {
+        Name = name, Email = "c@example.com", Phone = "1", Document = "1", TypeContact = TypeContact.PERSONAL,
+        Street = "Rua A", City = "c", State = "s", ZipCode = "z", Country = "BR", IsPrimary = true,
+    };
+
+    private static CreateTrasactionRequest NewTransaction(string category) => new()
+    {
+        Amount = 10, TransactionName = "Compra", Description = "", CategoryName = category,
+        SubCategoryName = "Geral", ContactName = "Contato", Paid = true,
+        TypeTransaction = TypeTransactions.EXPENSE, Recurrence = Recurrence.NONE,
+    };
+
+    private async Task<T> ScalarAsync<T>(string sql)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        return (await connection.ExecuteScalarAsync<T>(sql))!;
+    }
+
+    [Test]
+    public async Task EditContact_KeepsCreationDate_SavesAddress_AndNeverRevivesADeletedOne()
+    {
+        await WithContactService(service => service.CreateAsync(AccountId, NewContact("Contato")));
+        var id = await ScalarAsync<long>("SELECT Id FROM Contact");
+        var createdAt = await ScalarAsync<DateTime>("SELECT CreatedAt FROM Contact");
+
+        var edit = new ContactRequest
+        {
+            ContactId = id.ToString(), Name = "Contato", Email = "n@example.com", Phone = "2", Document = "2",
+            TypeContact = TypeContact.BUSINESS, Street = "Rua B", City = "c", State = "s", ZipCode = "z", Country = "BR",
+        };
+        await WithContactService(service => service.EditContactAsync(AccountId, edit));
+
+        Assert.That(await ScalarAsync<DateTime>("SELECT CreatedAt FROM Contact"), Is.EqualTo(createdAt));
+        await WithContactService(async service =>
+        {
+            var listed = (await service.GetAllsync(AccountId)).Single()!;
+            Assert.That((listed.Street, listed.TypeContactId), Is.EqualTo(("Rua B", 2L)));
+        });
+        Assert.That(await CountAsync("Address"), Is.EqualTo(1));
+
+        Assert.ThrowsAsync<ArgumentException>(() => WithContactService(s => s.CreateAsync(AccountId, NewContact("Contato"))));
+
+        await WithContactService(service => service.DeleteContactAsync(AccountId, id.ToString()));
+        Assert.ThrowsAsync<KeyNotFoundException>(() => WithContactService(s => s.EditContactAsync(AccountId, edit)));
+        Assert.That(await CountAsync("Contact WHERE IsActive"), Is.Zero);
+    }
+
+    [Test]
+    public async Task Transactions_MatchCategoryIgnoringAccents_AndStayEditableAfterContactIsDeleted()
+    {
+        await WithContactService(service => service.CreateAsync(AccountId, NewContact("Contato")));
+
+        foreach (var category in new[] { "ALIMENTACAO", "BENS_PESSOAIS", "Moradia" })
+            await WithTransactionService(service => service.CreateAsync(AccountId, NewTransaction(category)));
+
+        var now = BudgetTracker.Core.Domain.Utils.AppClock.Now;
+        foreach (var category in new[] { "ALIMENTACAO", "BENS_PESSOAIS", "MORADIA" })
+            await WithTransactionService(async service =>
+            {
+                var page = await service.FilterTransactionsByCategoryAsync(AccountId, category, BudgetTracker.Core.Domain.Entities.TypeTransaction.EXPENSE, now.Month, now.Year);
+                Assert.That(page.TotalRecords, Is.EqualTo(1), category);
+            });
+
+        var contactId = await ScalarAsync<long>("SELECT Id FROM Contact");
+        await WithContactService(service => service.DeleteContactAsync(AccountId, contactId.ToString()));
+
+        var transactionId = await ScalarAsync<long>("SELECT min(Id) FROM Transactions");
+        await WithTransactionService(service => service.EditTransactionAsync(AccountId, transactionId, new EditTransactionRequest
+        {
+            Amount = 20, TransactionName = "Compra", CategoryName = "Moradia", SubCategoryName = "Geral",
+            ContactName = "Contato", TypeTransaction = TypeTransactions.EXPENSE, Paid = true,
+        }));
+        Assert.That(await CountAsync("Transactions WHERE Amount = 20"), Is.EqualTo(1));
+
+        Assert.ThrowsAsync<KeyNotFoundException>(() => WithTransactionService(s => s.DeleteAsync(AccountId, 999999)));
+    }
+
+    [Test]
+    public async Task Budgets_RejectDuplicates_AndCountOnlyTheRequestedMonth()
+    {
+        async Task With(Func<BudgetLimitService, Task> action)
+        {
+            using var session = new DbSession(_configuration);
+            await action(new BudgetLimitService(new BudgetLimitRepository(session), new UnitOfWork(session),
+                new CategoryRepository(session), new TransactionsRepository(session)));
+        }
+
+        CreateBudgetLimit Budget(int month) => new() { AccountId = AccountId, CategoryName = "ALIMENTACAO", Month = month, Year = 2026, LimitAmount = 100 };
+
+        await With(service => service.CreateAsync(Budget(6)));
+        await With(service => service.CreateAsync(Budget(7)));
+        Assert.ThrowsAsync<ArgumentException>(() => With(s => s.CreateAsync(Budget(6))));
+
+        await With(async service =>
+        {
+            var page = await service.GetByAccountIdAsync(6, 2026, AccountId);
+            Assert.That((page.Items.Count(), page.TotalRecords), Is.EqualTo((1, 1)));
+        });
+    }
+
+    [Test]
+    public async Task Stocks_QuoteTheFirstBuy_AccumulateShares_AndKeepEachFixedIncomeDeposit()
+    {
+        var market = new Mock<IStockMarketService>();
+        market.Setup(m => m.GetStockByTickerAsync(It.IsAny<List<string>>()))
+            .ReturnsAsync([new StockMarketResponse { Ticker = "PETR4", PriceMarket = 30 }]);
+
+        async Task Buy(string ticker, bool isStock, decimal price = 20)
+        {
+            using var session = new DbSession(_configuration);
+            await new StockAppService(new StockRepository(session), market.Object, new UnitOfWork(session))
+                .CreateAsync(AccountId, new CreateStockRequest { Ticker = ticker, Title = "Titulo", Price = price, Quantity = 1, IsStock = isStock });
+        }
+
+        await Buy("petr4", true);
+        Assert.That(await ScalarAsync<decimal>("SELECT PriceMarket FROM Stock"), Is.EqualTo(30m));
+        var createdAt = await ScalarAsync<DateTime>("SELECT CreatedAt FROM Stock");
+
+        market.Setup(m => m.GetStockByTickerAsync(It.IsAny<List<string>>())).ReturnsAsync([]);
+        await Buy("PETR4", true);
+        Assert.That(await CountAsync("Stock WHERE Quantity = 2 AND PriceMarket = 30"), Is.EqualTo(1), "compra sem cotação não se perde");
+        Assert.That(await ScalarAsync<DateTime>("SELECT CreatedAt FROM Stock"), Is.EqualTo(createdAt));
+
+        await Buy("CDB-X", false);
+        await Buy("CDB-X", false);
+        Assert.That(await CountAsync("Stock WHERE NOT IsStock"), Is.EqualTo(2));
+
+        Assert.ThrowsAsync<ArgumentException>(() => Buy("NEG", true, -1));
+    }
+
+    [Test]
+    public async Task Login_FindsTheAccountIgnoringEmailCase()
+    {
+        using var session = new DbSession(_configuration);
+
+        Assert.That(await new AccountRepository(session).GetByEmailAsync("pessoa@example.com"), Is.Not.Null);
     }
 
     private async Task<long> CountAsync(string where)

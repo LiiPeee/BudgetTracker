@@ -13,7 +13,8 @@ public class CategoryRepository : RepositoryBase<Category>, ICategoryRepository
 
     public async Task<Category?> GetByNameAsync(string name)
     {
-        var query = @"SELECT * FROM Category WHERE Name = @Name ORDER BY Id LIMIT 1";
+        // O nome idêntico tem prioridade; depois vale a comparação sem acento e caixa.
+        var query = $"SELECT * FROM Category WHERE {CategorySql.Normalize("Name")} = {CategorySql.Normalize("@Name")} ORDER BY (Name = @Name) DESC, Id LIMIT 1";
 
         await _db.OpenAsync();
 

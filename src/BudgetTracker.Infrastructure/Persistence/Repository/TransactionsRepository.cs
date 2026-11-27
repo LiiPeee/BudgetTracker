@@ -49,7 +49,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
         INNER JOIN Category cat ON t.CategoryId = cat.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
         INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
-        WHERE t.AccountId = @AccountId AND tp.Name = @Type AND cat.Name = @Category 
+        WHERE t.AccountId = @AccountId AND tp.Name = @Type AND {CategorySql.Normalize("cat.Name")} = {CategorySql.Normalize("@Category")} 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year)
         ORDER BY t.Id DESC
         LIMIT @PageSize OFFSET @OffSet;
@@ -60,7 +60,7 @@ SELECT {TransactionWithContactAndCategoryColumns}
         INNER JOIN Category cat ON t.CategoryId = cat.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
         INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
-        WHERE t.AccountId = @AccountId AND tp.Name = @Type AND cat.Name = @Category 
+        WHERE t.AccountId = @AccountId AND tp.Name = @Type AND {CategorySql.Normalize("cat.Name")} = {CategorySql.Normalize("@Category")} 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year);";
 
         await _db.OpenAsync();

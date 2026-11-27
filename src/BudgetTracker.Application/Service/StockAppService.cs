@@ -1,4 +1,4 @@
-﻿using BudgetTracker.Core.Domain.Dtos.Output;
+using BudgetTracker.Core.Domain.Dtos.Output;
 using BudgetTracker.Core.Domain.Entities;
 using BudgetTracker.Core.Domain.Models.Output;
 using BudgetTracker.Core.Domain.Models.Request.Stock;
@@ -18,23 +18,32 @@ namespace BudgetTracker.Application.Service
         private readonly IStockMarketService _stockMarketService = stockMarketService;
         public async Task CreateAsync(long accountId, CreateStockRequest request)
         {
-            var stock = await _stockRepository.GetByStockAndAccountAsync(accountId, request.Ticker);
+            if (request.Price <= 0)
+                throw new ArgumentException("price must be greater than zero");
 
-            if(stock is not null)
+            if (request.Quantity <= 0)
+                throw new ArgumentException("quantity must be greater than zero");
+
+            var ticker = request.Ticker.Trim().ToUpperInvariant();
+
+            // Só ações somam na mesma posição. Cada aplicação de renda fixa tem data e taxa
+            // próprias, então vira um registro separado.
+            if (request.IsStock && await _stockRepository.GetByStockAndAccountAsync(accountId, ticker) is { } stock)
             {
-               await UpdateStockAsync(stock, request);
-               return;
+                await AddToPositionAsync(stock, request);
+                return;
             }
 
             var newStock = new Stock()
             {
                 AccountId = accountId,
-                Ticker = request.Ticker,
+                Ticker = ticker,
                 Title = request.Title,
                 Quantity = request.Quantity,
                 Description = request.Description,
                 FixedIncomeType = request.FixedIncomeType,
                 PriceBuyed = request.Price,
+                PriceMarket = request.IsStock ? await GetMarketPriceAsync(ticker) ?? 0 : 0,
                 CdiRate = request.CdiRate,
                 IsStock = request.IsStock,
                 InvestmentDate = request.InvestmentDate
@@ -51,9 +60,7 @@ namespace BudgetTracker.Application.Service
             var allStocks = stocks.Select(x =>
             {
                 var priceMarket = x.PriceMarket;
-                var percentage = x.PriceBuyed > 0
-                        ? (priceMarket - x.PriceBuyed) / x.PriceBuyed * 100
-                        : 0;
+                var percentage = Variation(priceMarket, x.PriceBuyed);
                 return new GetAllStockResponse()
                 {
                     Ticker = x.Ticker,
@@ -92,9 +99,7 @@ namespace BudgetTracker.Application.Service
             var allFunds = funds.Where(x => x.IsStock == false).Select(x =>
             {
                 var priceMarket = x.PriceMarket;
-                var percentage = x.PriceBuyed > 0
-                        ? (priceMarket - x.PriceBuyed) / x.PriceBuyed * 100
-                        : 0;
+                var percentage = Variation(priceMarket, x.PriceBuyed);
                 return new GetAllStockResponse()
                 {
                     Ticker = x.Ticker,
@@ -126,54 +131,37 @@ namespace BudgetTracker.Application.Service
             };
         }
 
-
-        private async Task UpdateStockAsync(Stock stock, CreateStockRequest request) 
+        // A compra é gravada mesmo sem cotação; o preço de mercado anterior é mantido.
+        private async Task AddToPositionAsync(Stock stock, CreateStockRequest request)
         {
+            var totalQuantity = stock.Quantity + request.Quantity;
+            var averagePrice = (stock.Quantity * stock.PriceBuyed + request.Quantity * request.Price) / totalQuantity;
 
-            var existingPrice = stock.Quantity * stock.PriceBuyed;
+            var priceMarket = await GetMarketPriceAsync(stock.Ticker) ?? stock.PriceMarket;
 
-            var priceBuyed = request.Quantity * request.Price;
-
-            var totalPrice = priceBuyed + existingPrice;
-
-            var totalQuantity = request.Quantity + stock.Quantity;
-
-            var avaragePrice = totalPrice / totalQuantity;
-
-            var liveStock = await _stockMarketService.GetStockByTickerAsync([stock.Ticker]);
-
-            var result = liveStock.FirstOrDefault(x => x.Ticker == stock.Ticker);
-
-            if (result is null ||  result.PriceMarket == 0) return;
-
-            var priceMarket = result.PriceMarket;
-
-            var percentage = avaragePrice > 0
-                    ? (priceMarket - avaragePrice) / avaragePrice * 100
-                    : 0;
-
-            Stock updateStock = new Stock()
-            {
-                Id = stock.Id,
-                Quantity = totalQuantity,
-                AccountId = stock.AccountId,
-                Title = stock.Title,
-                PriceMarket = priceMarket,
-                IsStock = stock.IsStock,
-                Ticker = stock.Ticker,
-                PriceBuyed = avaragePrice,
-                Avarage = $"{Math.Round(percentage, 2)}%",
-                CdiRate = stock.CdiRate,
-                InvestmentDate = stock.InvestmentDate,
-                FixedIncomeType = stock.FixedIncomeType,
-            };
+            // Altera o registro lido, para não apagar CreatedAt.
+            stock.Quantity = totalQuantity;
+            stock.PriceBuyed = averagePrice;
+            stock.PriceMarket = priceMarket;
+            stock.Avarage = $"{Math.Round(Variation(priceMarket, averagePrice), 2)}%";
+            stock.UpdatedAt = DateTime.UtcNow;
 
             _unitOfWork.BeginTransaction();
-
-            await _stockRepository.UpdateAsync(updateStock);
-
+            await _stockRepository.UpdateAsync(stock);
             _unitOfWork.Commit();
         }
+
+        private async Task<decimal?> GetMarketPriceAsync(string ticker)
+        {
+            var quotes = await _stockMarketService.GetStockByTickerAsync([ticker]);
+            var quote = quotes.FirstOrDefault(x => string.Equals(x.Ticker, ticker, StringComparison.OrdinalIgnoreCase));
+
+            return quote is { PriceMarket: > 0 } ? quote.PriceMarket : null;
+        }
+
+        // Sem cotação não há variação a mostrar (e não uma queda de 100%).
+        private static decimal Variation(decimal priceMarket, decimal priceBuyed)
+            => priceMarket > 0 && priceBuyed > 0 ? (priceMarket - priceBuyed) / priceBuyed * 100 : 0;
 
     }
 }
