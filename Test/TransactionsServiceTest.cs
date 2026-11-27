@@ -165,7 +165,11 @@ public class TransactionsServiceTest
     [Test]
     public async Task EditTransactionAsync_OwnedTransaction_UpdatesFieldsAndCommits()
     {
-        var existing = new Transactions { Id = 5, AccountId = 1, Amount = 10, Name = "Old", TypeTransactionId = 1 };
+        var existing = new Transactions
+        {
+            Id = 5, AccountId = 1, Amount = 10, Name = "Old", TypeTransactionId = 1,
+            Description = "old", RecurrenceId = 1, NumberOfInstallment = 12,
+        };
         _transactionsRepo.Setup(r => r.GetByIdAsync(5, 1)).ReturnsAsync(existing);
         _categoryRepo.Setup(r => r.GetByNameAsync("Alimentação")).ReturnsAsync(new Category { Id = 2, Name = "Alimentação" });
         _contactRepo.Setup(r => r.GetByNameAsync(1, "John")).ReturnsAsync(new Contact { Id = 2, Name = "John", AccountId = 1 });
@@ -181,9 +185,16 @@ public class TransactionsServiceTest
             SubCategoryName = "Lunch",
             TypeTransaction = TypeTransactions.EXPENSE,
             Paid            = true,
+            Description     = "new description",
+            RecurrenceName  = "MONTHLY",
+            NumberOfInstallment = 3,
         };
 
         await _service.EditTransactionAsync(1, 5, request);
+
+        Assert.That(existing.Description, Is.EqualTo("new description"));
+        Assert.That(existing.RecurrenceId, Is.EqualTo(4));
+        Assert.That(existing.NumberOfInstallment, Is.EqualTo(12), "the installment total must not change on edit");
 
         _transactionsRepo.Verify(r => r.UpdateAsync(It.Is<Transactions>(t =>
             t.Id == 5 && t.Amount == 99 && t.Name == "New name" && t.Paid)), Times.Once);
