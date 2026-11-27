@@ -8,6 +8,8 @@ namespace BudgetTracker.Application.Service;
 /// </summary>
 public sealed class AuthAttemptTracker(TimeProvider? timeProvider = null)
 {
+    private const int PruneThreshold = 10_000;
+
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
     private readonly ConcurrentDictionary<string, (int Count, DateTimeOffset ExpiresAt)> _entries = new();
 
@@ -15,6 +17,7 @@ public sealed class AuthAttemptTracker(TimeProvider? timeProvider = null)
     public bool TryRegisterAttempt(string key, int maxAttempts, TimeSpan window)
     {
         var now = _time.GetUtcNow();
+        Prune(now);
         var entry = _entries.AddOrUpdate(
             key,
             _ => (1, now + window),
@@ -28,4 +31,16 @@ public sealed class AuthAttemptTracker(TimeProvider? timeProvider = null)
     public bool IsLocked(string key) => _entries.TryGetValue(key, out var entry) && entry.ExpiresAt > _time.GetUtcNow();
 
     public void Clear(string key) => _entries.TryRemove(key, out _);
+
+    // E-mails inventados criam entradas; as vencidas saem quando o dicionário cresce.
+    private void Prune(DateTimeOffset now)
+    {
+        if (_entries.Count < PruneThreshold) return;
+
+        foreach (var entry in _entries)
+        {
+            if (entry.Value.ExpiresAt <= now)
+                _entries.TryRemove(entry);
+        }
+    }
 }

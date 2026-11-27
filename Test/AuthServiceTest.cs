@@ -582,7 +582,7 @@ public class AuthServiceTest
     {
         SetupJwt();
         var account = BuildActiveAccount();
-        account.RefreshToken        = "valid-refresh";
+        account.RefreshToken        = Sha256Hex("valid-refresh");
         account.RefreshTokenExpiryTime = DateTimeOffset.UtcNow.AddHours(1);
 
         _accountRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(account);
@@ -597,6 +597,7 @@ public class AuthServiceTest
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result!.RefreshToken, Is.EqualTo("new-refresh-token"));
+        Assert.That(account.RefreshToken, Is.EqualTo(Sha256Hex("new-refresh-token")), "only the hash is stored");
     }
 
     [Test]
@@ -616,7 +617,7 @@ public class AuthServiceTest
     public async Task RefreshTokenAsync_TokenMismatch_CommitsInvalidationAndThrows()
     {
         var account = BuildActiveAccount();
-        account.RefreshToken           = "different-token";
+        account.RefreshToken           = Sha256Hex("different-token");
         account.RefreshTokenExpiryTime = DateTimeOffset.UtcNow.AddHours(1);
 
         _accountRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(account);
@@ -636,7 +637,7 @@ public class AuthServiceTest
     public async Task RefreshTokenAsync_TokenExpired_CommitsInvalidationAndThrows()
     {
         var account = BuildActiveAccount();
-        account.RefreshToken           = "expired-token";
+        account.RefreshToken           = Sha256Hex("expired-token");
         account.RefreshTokenExpiryTime = DateTimeOffset.UtcNow.AddHours(-1);
 
         _accountRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(account);
@@ -734,5 +735,33 @@ public class AuthServiceTest
         Assert.That(account.Password, Is.Not.EqualTo(HashedValidPassword));
         _accountRepo.Verify(r => r.RevokeRefreshTokenAsync(account.Id), Times.Once);
     }
-}
 
+    [Test]
+    public void SignInAsync_UnknownEmail_LocksLikeARealAccount()
+    {
+        _accountRepo.Setup(r => r.GetByEmailAsync(It.IsAny<string>())).ReturnsAsync((Account?)null);
+        var request = new LoginRequestDto { Email = "nobody@test.com", Password = "WrongPass1!" };
+
+        for (var i = 0; i < 5; i++)
+        {
+            var failed = Assert.ThrowsAsync<UnauthorizedAccessException>(() => _service.SignInAsync(request));
+            Assert.That(failed!.Message, Does.Contain("invalid credentials"));
+        }
+
+        var locked = Assert.ThrowsAsync<UnauthorizedAccessException>(() => _service.SignInAsync(request));
+        Assert.That(locked!.Message, Does.Contain("temporarily locked"));
+    }
+
+    [Test]
+    public void SignInAsync_ExceededVerifyAttemptsWithWrongPassword_SaysInvalidCredentials()
+    {
+        var account = BuildActiveAccount();
+        account.VerifyAttempts = 6;
+        _accountRepo.Setup(r => r.GetByEmailAsync(account.Email)).ReturnsAsync(account);
+
+        var ex = Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _service.SignInAsync(new LoginRequestDto { Email = account.Email, Password = "WrongPass1!" }));
+
+        Assert.That(ex!.Message, Does.Contain("invalid credentials"));
+    }
+}

@@ -10,6 +10,7 @@ using BudgetTracker.Core.Infrastructure.Services;
 using Google.Apis.Auth;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using System.Diagnostics.CodeAnalysis;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -29,6 +30,7 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
     private const int MaxResetCodeAttempts = 5;
     private static readonly TimeSpan LoginLockDuration = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan ResetCodeWindow = TimeSpan.FromHours(1);
+    private const string LockedMessage = "account temporarily locked due to too many failed login attempts";
     private const string InvalidResetCodeMessage = "Invalid or expired reset code";
 
     private readonly AuthAttemptTracker _attempts = attempts;
@@ -190,8 +192,18 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
         return CryptographicOperations.FixedTimeEquals(stored, provided);
     }
 
-    private static string HashResetCode(string code)
-        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
+    private static string HashResetCode(string code) => Sha256Hex(code);
+
+    private static string Sha256Hex(string value)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
+
+    private static bool IsRefreshTokenValid(string? storedHash, string? provided)
+    {
+        if (string.IsNullOrEmpty(storedHash) || string.IsNullOrEmpty(provided)) return false;
+
+        return CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(storedHash), Encoding.UTF8.GetBytes(Sha256Hex(provided)));
+    }
 
     private async Task PersistAccountAsync(Account account)
     {
@@ -295,16 +307,13 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
 
             if (account is null)
             {
-                _passwordHasher.Verify(DummyPasswordHash, request.Password, out _);
-                throw new UnauthorizedAccessException("invalid credentials");
+                RejectUnknownEmail(request);
             }
-
-            if (account.VerifyAttempts > 5) throw new UnauthorizedAccessException("exceeds attempts");
 
             if (account.LoginAttempts >= MaxLoginAttempts)
             {
                 if (_attempts.IsLocked(LoginKey(account.Id)))
-                    throw new UnauthorizedAccessException("account temporarily locked due to too many failed login attempts");
+                    throw new UnauthorizedAccessException(LockedMessage);
 
                 // O bloqueio venceu: recomeça a contagem.
                 account.LoginAttempts = 0;
@@ -327,6 +336,9 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
                     _attempts.Lock(LoginKey(account.Id), LoginLockDuration);
                 throw new UnauthorizedAccessException("invalid credentials");
             }
+
+            // Só depois de conferir a senha: antes disso a mensagem revelaria que a conta existe.
+            if (account.VerifyAttempts > 5) throw new UnauthorizedAccessException("exceeds attempts");
 
             var hadFailedAttempts = account.LoginAttempts > 0;
             account.LoginAttempts = 0;
@@ -387,7 +399,7 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
 
         if (account is null) throw new UnauthorizedAccessException("invalid refresh token");
 
-        if (!account.IsActive || account.RefreshToken != request.RefreshToken || account.RefreshTokenExpiryTime <= DateTime.UtcNow)
+        if (!account.IsActive || !IsRefreshTokenValid(account.RefreshToken, request.RefreshToken) || account.RefreshTokenExpiryTime <= DateTime.UtcNow)
         {
             // Invalida o token mesmo quando rejeitado, para evitar reuso
             try
@@ -410,6 +422,26 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
             AccessToken = CreateToken(account),
             RefreshToken = await GenerateAndSaveRefreshToken(account)
         };
+    }
+
+    // E-mail sem cadastro é bloqueado como um cadastrado, para o bloqueio não revelar quem existe.
+    [DoesNotReturn]
+    private void RejectUnknownEmail(LoginRequestDto request)
+    {
+        var key = $"login-unknown:{request.Email.ToLowerInvariant()}";
+
+        if (_attempts.IsLocked($"{key}:lock"))
+            throw new UnauthorizedAccessException(LockedMessage);
+
+        _passwordHasher.Verify(DummyPasswordHash, request.Password, out _);
+
+        if (!_attempts.TryRegisterAttempt(key, MaxLoginAttempts - 1, LoginLockDuration))
+        {
+            _attempts.Lock($"{key}:lock", LoginLockDuration);
+            _attempts.Clear(key);
+        }
+
+        throw new UnauthorizedAccessException("invalid credentials");
     }
 
     private static string LoginKey(long accountId) => $"login:{accountId}";
@@ -444,7 +476,8 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
         {
             var refreshToken = _passwordHelper.GenerateRefreshToken();
 
-            account.RefreshToken = refreshToken;
+            // No banco fica só o hash; o valor em claro vai apenas para o cliente.
+            account.RefreshToken = Sha256Hex(refreshToken);
             account.RefreshTokenExpiryTime = DateTime.UtcNow.AddMinutes(configuration.GetValue<int>("Jwt:RefreshTokenExpirationMinutes"));
 
             _unitOfWork.BeginTransaction();
@@ -518,7 +551,8 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
     {
         var settings = new GoogleJsonWebSignature.ValidationSettings
         {
-            Audience = [configuration.GetValue<string>("Authentication:Google:ClientId")]
+            // Program.cs usa "Google:ClientId"; a chave antiga continua valendo se estiver definida.
+            Audience = [configuration["Authentication:Google:ClientId"] ?? configuration["Google:ClientId"]]
         };
 
         return await GoogleJsonWebSignature.ValidateAsync(idToken, settings);
