@@ -14,7 +14,8 @@ public class ExpiredTokenValidator : IExpiredTokenValidator
 
     public ExpiredTokenValidator(IOptionsMonitor<JwtBearerOptions> options)
     {
-        _baseParameters = options.CurrentValue.TokenValidationParameters;
+        // As opções do JwtBearer são nomeadas pelo esquema; CurrentValue traria um objeto sem chave.
+        _baseParameters = options.Get(JwtBearerDefaults.AuthenticationScheme).TokenValidationParameters;
     }
 
     public long? GetAccountIdFromExpiredToken(string? authorizationHeader)

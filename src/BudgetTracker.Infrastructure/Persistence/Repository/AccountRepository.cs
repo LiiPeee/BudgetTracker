@@ -31,6 +31,15 @@ public class AccountRepository : RepositoryBase<Account>, IAccountRepository
         return account;
     }
 
+    // UpdateAsync ignora propriedades nulas, então limpar o token precisa de SQL próprio.
+    public async Task RevokeRefreshTokenAsync(long accountId)
+    {
+        await _db.OpenAsync();
+
+        const string query = @"UPDATE Account SET RefreshToken = NULL, RefreshTokenExpiryTime = NULL WHERE Id = @AccountId";
+        await _db._connection.ExecuteAsync(query, new { AccountId = accountId }, _db._transaction);
+    }
+
     public async Task UpdateBalanceAtomicAsync(long accountId, decimal delta)
     {
         await _db.OpenAsync();
