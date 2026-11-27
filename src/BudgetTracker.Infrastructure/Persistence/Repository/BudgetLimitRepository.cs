@@ -30,7 +30,7 @@ namespace BudgetTracker.Infrastructure.Persistence.Repository
 
                 SELECT COUNT(1)
                 FROM BudgetLimit bt
-                WHERE bt.AccountId = @AccountId;";
+                WHERE bt.AccountId = @AccountId AND bt.Month = @Month AND bt.Year = @Year;";
 
             await _db.OpenAsync();
 
@@ -56,6 +56,17 @@ namespace BudgetTracker.Infrastructure.Persistence.Repository
                 TotalRecords = totalRecords,
                 Items = items
             };
+        }
+
+        public async Task<bool> ExistsAsync(long accountId, long categoryId, int month, int year)
+        {
+            const string query = @"SELECT EXISTS (SELECT 1 FROM BudgetLimit
+                WHERE AccountId = @AccountId AND CategoryId = @CategoryId AND Month = @Month AND Year = @Year)";
+
+            await _db.OpenAsync();
+
+            return await _db._connection.ExecuteScalarAsync<bool>(query,
+                new { AccountId = accountId, CategoryId = categoryId, Month = month, Year = year }, _db._transaction);
         }
 
         public async Task<BudgetLimit?> GetByCategoryAndAccountIdAsync(long categoryId, long accountId)

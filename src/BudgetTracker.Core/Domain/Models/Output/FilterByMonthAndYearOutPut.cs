@@ -33,6 +33,13 @@ namespace BudgetTracker.Core.Domain.Dtos.Output
         public string? Document { get; set; }
         public long TypeContactId { get; set; }
         public bool IsActive { get; set; }
+        // Preenchidos só na listagem de contatos, para o formulário de edição.
+        public string? Street { get; set; }
+        public string? City { get; set; }
+        public string? State { get; set; }
+        public string? ZipCode { get; set; }
+        public string? Country { get; set; }
+        public bool IsPrimary { get; set; }
     }
     public class CategoryOutput
     {

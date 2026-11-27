@@ -4,6 +4,7 @@ using BudgetTracker.Core.Domain.Enum;
 using BudgetTracker.Core.Domain.Dtos.Request.Transaction;
 using BudgetTracker.Core.Domain.Repository;
 using BudgetTracker.Core.Domain.UnitOfWork;
+using BudgetTracker.Core.Domain.Utils;
 using BudgetTracker.Core.Infrastructure.Repository;
 using Moq;
 
@@ -87,7 +88,7 @@ public class TransactionsAppServiceCompetenceTests
     [Test]
     public async Task Dado_RecorrenciaNONE_Quando_Criar_Entao_CompetenceDate_EhMesAtual()
     {
-        var expected = DateTime.UtcNow;
+        var expected = AppClock.Now;
 
         await _service.CreateAsync(AccountId, Request(Recurrence.NONE));
 
@@ -102,7 +103,7 @@ public class TransactionsAppServiceCompetenceTests
     [Test]
     public async Task Dado_RecorrenciaOCCASIONALLY_Quando_Criar_Entao_CompetenceDate_EhProximoMes()
     {
-        var expected = DateTime.UtcNow.AddMonths(1);
+        var expected = AppClock.Now.AddMonths(1);
 
         await _service.CreateAsync(AccountId, Request(Recurrence.OCCASIONALLY));
 
@@ -137,12 +138,38 @@ public class TransactionsAppServiceCompetenceTests
         }
     }
 
+    [TestCase(31)]
+    [TestCase(null)]
+    public async Task Dado_DiaInexistenteNoMesOuNaoInformado_Quando_Parcelar_Entao_UsaDataValida(int? day)
+    {
+        var today = AppClock.Now;
+
+        await _service.CreateAsync(AccountId, Request(Recurrence.NONE, installments: 12, dayOfInstallment: day));
+
+        Assert.That(_saved, Has.Count.EqualTo(12));
+        for (var i = 0; i < _saved.Count; i++)
+        {
+            var month = new DateTime(today.Year, today.Month, 1).AddMonths(i + 1);
+            var expected = Math.Min(day ?? today.Day, DateTime.DaysInMonth(month.Year, month.Month));
+            Assert.That(_saved[i].CompetenceDate, Is.EqualTo(new DateTime(month.Year, month.Month, expected)));
+        }
+    }
+
+    [Test]
+    public void Dado_NoiteDoUltimoDiaDoMes_Quando_Converter_Entao_ContinuaNoMesmoMes()
+    {
+        // 01:30 UTC de 1º de novembro ainda é 31 de outubro às 22:30 no Brasil.
+        var local = AppClock.ToLocal(new DateTime(2026, 11, 1, 1, 30, 0, DateTimeKind.Utc));
+
+        Assert.That(local, Is.EqualTo(new DateTime(2026, 10, 31, 22, 30, 0)));
+    }
+
     [Test]
     public async Task Dado_ParcelasComOCCASIONALLY_Quando_Criar_Entao_PushNaoSeAplica()
     {
         // Installments ignore the OCCASIONALLY push: first installment is next month
         // (AddMonths(1) from the installment loop), NOT two months out.
-        var firstInstallment = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 5).AddMonths(1);
+        var firstInstallment = new DateTime(AppClock.Now.Year, AppClock.Now.Month, 5).AddMonths(1);
 
         await _service.CreateAsync(AccountId, Request(Recurrence.OCCASIONALLY, installments: 2, dayOfInstallment: 5));
 

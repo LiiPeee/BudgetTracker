@@ -28,6 +28,8 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
 {
     private const int MaxLoginAttempts = 5;
     private const int MaxResetCodeAttempts = 5;
+    private const int MaxVerificationResends = 3;
+    private const string SignUpMessage = "We send a verification email for you";
     private static readonly TimeSpan LoginLockDuration = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan ResetCodeWindow = TimeSpan.FromHours(1);
     private const string LockedMessage = "account temporarily locked due to too many failed login attempts";
@@ -46,11 +48,6 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
 
     public async Task<string?> SignUpAsync(CreateAccountRequestDto request)
     {
-        var existingAccount = await _accountRepository.GetByEmailAsync(request.Email);
-
-        if (existingAccount is not null)
-            return "We send a verification email for you";
-
         if (string.IsNullOrWhiteSpace(request.Password)) throw new ArgumentException("password must not be empty");
 
         if (request.Password.Length < 8) throw new ArgumentException("password must be at least 8 characters");
@@ -58,6 +55,16 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
         if (request.Password.Any(char.IsUpper) == false) throw new ArgumentException("password must contain at least one uppercase letter");
 
         if (request.Password.Any(char.IsLower) == false) throw new ArgumentException("password must contain at least one lowercase letter");
+
+        var existingAccount = await _accountRepository.GetByEmailAsync(request.Email);
+
+        if (existingAccount is not null)
+        {
+            if (!existingAccount.EmailVerified)
+                await ResendVerificationAsync(existingAccount, request);
+
+            return SignUpMessage;
+        }
 
         var hashPassword = _passwordHasher.Hash(request.Password);
 
@@ -88,7 +95,7 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
 
             _unitOfWork.Commit();
 
-            return "We send a verification email for you";
+            return SignUpMessage;
         }
         catch
         {
@@ -96,6 +103,37 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
             throw;
         }
     }
+
+    // Cadastro nunca confirmado (o código vence em 4h): um novo cadastro troca os dados e envia
+    // outro código. O limite por conta evita encher a caixa de alguém e testar códigos em série.
+    private async Task ResendVerificationAsync(Account account, CreateAccountRequestDto request)
+    {
+        if (!_attempts.TryRegisterAttempt($"signup-resend:{account.Id}", MaxVerificationResends, ResetCodeWindow))
+            return;
+
+        var verificationToken = _passwordHelper.GenerateVerificationCode();
+
+        account.FirstName = request.FirstName;
+        account.LastName = request.LastName;
+        account.Password = _passwordHasher.Hash(request.Password);
+        account.EmailVerificationToken = HashResetCode(verificationToken);
+        account.EmailVerificationTokenExpiry = DateTime.UtcNow.AddHours(4);
+        account.VerifyAttempts = 0;
+
+        try
+        {
+            _unitOfWork.BeginTransaction();
+            await _accountRepository.UpdateAsync(account);
+            await _emailService.SendCodeToEmailAsync(account.Email, _passwordHelper.EncryptUrl(account.Id.ToString()), verificationToken);
+            _unitOfWork.Commit();
+        }
+        catch
+        {
+            _unitOfWork.Rollback();
+            throw;
+        }
+    }
+
     public async Task<string?> VerifyTokenSignUpAsync(VerifyTokenRequestDto request)
     {
         try
@@ -276,6 +314,16 @@ public class AuthenticationAppService(IAccountRepository accountRepository,
 
             account!.Password = _passwordHasher.Hash(request.newPassword);
             account.LoginAttempts = 0;
+
+            // O código recebido por e-mail prova a posse do endereço: conclui o cadastro pendente.
+            if (!account.EmailVerified)
+            {
+                account.EmailVerified = true;
+                account.IsActive = true;
+                account.VerifiedAt = DateTime.UtcNow;
+                account.VerifyAttempts = 0;
+                account.EmailVerificationTokenExpiry = DateTime.UtcNow;
+            }
 
             // Invalidate the code so it cannot be replayed, atomically with the password change.
             resetPassword.HashedToken = null!;

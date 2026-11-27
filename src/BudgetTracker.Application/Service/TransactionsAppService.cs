@@ -9,6 +9,7 @@ using BudgetTracker.Core.Domain.Models.Request.Transaction;
 using BudgetTracker.Core.Domain.Repository;
 using BudgetTracker.Core.Domain.Service;
 using BudgetTracker.Core.Domain.UnitOfWork;
+using BudgetTracker.Core.Domain.Utils;
 using BudgetTracker.Core.Infrastructure.Repository;
 
 namespace BudgetTracker.Application.Service;
@@ -69,8 +70,8 @@ public class TransactionsAppService : ITransactionsAppService
             }
 
             var competenceDate = recurrenceId == (long)Recurrence.OCCASIONALLY
-                ? DateTime.UtcNow.AddMonths(1)
-                : DateTime.UtcNow;
+                ? AppClock.Now.AddMonths(1)
+                : AppClock.Now;
 
             Transactions transaction = new()
             {
@@ -111,8 +112,14 @@ public class TransactionsAppService : ITransactionsAppService
             var existing = await _transactionRepository.GetByIdAsync(id, accountId)
                 ?? throw new UnauthorizedAccessException("Transaction not found or access denied");
 
-            var contact = await _contactRepository.GetByNameAsync(accountId, transactionRequest.ContactName)
-                ?? throw new KeyNotFoundException("we cannot find contact for this transaction");
+            // O contato atual continua válido mesmo excluído; só uma troca exige um contato ativo.
+            var current = existing.ContactId is long currentId
+                ? await _contactRepository.GetByIdAsync(currentId, accountId)
+                : null;
+            var contact = current?.Name == transactionRequest.ContactName
+                ? current
+                : await _contactRepository.GetByNameAsync(accountId, transactionRequest.ContactName)
+                    ?? throw new KeyNotFoundException("we cannot find contact for this transaction");
 
             var category = await _categoryRepository.GetByNameAsync(transactionRequest.CategoryName)
                 ?? throw new KeyNotFoundException("we cannot find category for this transaction");
@@ -179,7 +186,8 @@ public class TransactionsAppService : ITransactionsAppService
         {
             _unitOfWork.BeginTransaction();
 
-            await _transactionRepository.DeleteAsync(id, accountId);
+            if (!await _transactionRepository.DeleteAsync(id, accountId))
+                throw new KeyNotFoundException("Transaction not found or access denied");
 
             _unitOfWork.Commit();
         }
@@ -306,11 +314,11 @@ public class TransactionsAppService : ITransactionsAppService
     }
 
     // GET TRANSACTION BY CATEGORY, TYPE, MONTH AND YEAR
-    public async Task<IPagedResult<FilterByMonthAndYearOutPut>> FilterTransactionsByCategoryAsync(long accountId, Categories categoryName, TypeTransaction type, long month, long year, int pageNumber = 1)
+    public async Task<IPagedResult<FilterByMonthAndYearOutPut>> FilterTransactionsByCategoryAsync(long accountId, string categoryName, TypeTransaction type, long month, long year, int pageNumber = 1)
     {
         try
         {
-            var transactions = await _transactionRepository.FilterTransactionsByCategoryAsync(accountId, categoryName.ToString(), type.ToString(), month, year, pageNumber);
+            var transactions = await _transactionRepository.FilterTransactionsByCategoryAsync(accountId, categoryName, type.ToString(), month, year, pageNumber);
 
             var filter = new List<FilterByMonthAndYearOutPut>();
 
@@ -523,12 +531,18 @@ public class TransactionsAppService : ITransactionsAppService
     {
         try
         {
-            var dateNow = DateTime.UtcNow;
+            var today = AppClock.Now;
+            var firstOfMonth = new DateTime(today.Year, today.Month, 1);
+            // Sem dia informado, as parcelas vencem no mesmo dia da compra.
+            var day = request.DateOfInstallment ?? today.Day;
             List<Transactions> transactions = new List<Transactions>();
 
             for (var i = 1; i <= request.NumberOfInstallment; i++)
             {
-                var dateInstallemnts = new DateTime(dateNow.Year, dateNow.Month, (int)request.DateOfInstallment).AddMonths(i);
+                var month = firstOfMonth.AddMonths(i);
+                // Dia 31 num mês de 30 (ou 28) dias vence no último dia daquele mês.
+                var dateInstallemnts = new DateTime(month.Year, month.Month,
+                    Math.Min(day, DateTime.DaysInMonth(month.Year, month.Month)));
 
                 Transactions transaction = new()
                 {

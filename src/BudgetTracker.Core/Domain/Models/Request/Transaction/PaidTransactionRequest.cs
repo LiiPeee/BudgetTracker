@@ -10,7 +10,7 @@ namespace BudgetTracker.Core.Domain.Dtos.Request.Transaction
     public class PaidTransactionRequest
     {
         [Required]
-        [Range(1, long.MaxValue, ErrorMessage = "TransactionId inv·lido")]
+        [Range(1, long.MaxValue, ErrorMessage = "TransactionId inv√°lido")]
         public long TransactionId { get; set; }
 
         [Required]

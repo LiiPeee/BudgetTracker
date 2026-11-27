@@ -131,7 +131,7 @@ public class AuthServiceTest
     public async Task SignUpAsync_EmailAlreadyExists_ReturnsSuccessMessageWithoutCreatingAccount()
     {
         var request = BuildSignUpRequest(email: "existe@test.com");
-        _accountRepo.Setup(r => r.GetByEmailAsync(request.Email)).ReturnsAsync(new Account { Id = 1 });
+        _accountRepo.Setup(r => r.GetByEmailAsync(request.Email)).ReturnsAsync(new Account { Id = 1, EmailVerified = true });
 
         var result = await _service.SignUpAsync(request);
 
@@ -139,6 +139,47 @@ public class AuthServiceTest
         _unitOfWork.Verify(u => u.BeginTransaction(), Times.Never);
         _unitOfWork.Verify(u => u.Commit(), Times.Never);
         _accountRepo.Verify(r => r.AddAsync(It.IsAny<Account>()), Times.Never);
+    }
+
+    [Test]
+    public async Task SignUpAsync_UnverifiedEmail_SendsNewCodeUpToTheHourlyLimit()
+    {
+        var request = BuildSignUpRequest(email: "pendente@test.com");
+        var pending = new Account { Id = 7, Email = request.Email, EmailVerified = false, IsActive = false, VerifyAttempts = 6 };
+        _accountRepo.Setup(r => r.GetByEmailAsync(request.Email)).ReturnsAsync(pending);
+        _passwordHelper.Setup(p => p.GenerateVerificationCode()).Returns("654321");
+        _passwordHelper.Setup(p => p.EncryptUrl("7")).Returns("encrypted-id");
+
+        for (var i = 0; i < 5; i++)
+            Assert.That(await _service.SignUpAsync(request), Is.EqualTo("We send a verification email for you"));
+
+        _emailService.Verify(e => e.SendCodeToEmailAsync(request.Email, "encrypted-id", "654321"), Times.Exactly(3));
+        _accountRepo.Verify(r => r.AddAsync(It.IsAny<Account>()), Times.Never);
+        Assert.Multiple(() =>
+        {
+            Assert.That(pending.EmailVerificationToken, Is.EqualTo(HashToken("654321")));
+            Assert.That(pending.EmailVerificationTokenExpiry, Is.GreaterThan(DateTime.UtcNow));
+            Assert.That(pending.VerifyAttempts, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task ResetPasswordAsync_UnverifiedAccount_ActivatesIt()
+    {
+        var account = new Account { Id = 3, Email = "pendente@test.com", EmailVerified = false, IsActive = false };
+        _accountRepo.Setup(r => r.GetByEmailAsync(account.Email)).ReturnsAsync(account);
+        _resetPasswordRepo.Setup(r => r.GetByAccountIdAsync(3)).ReturnsAsync(new ResetPassword
+        {
+            AccountId = 3, HashedToken = HashToken("123456"), ExpireAt = DateTime.UtcNow.AddMinutes(5),
+        });
+
+        await _service.ResetPasswordAsync(new ResetPasswordRequestDto { email = account.Email, newPassword = ValidPassword, token = "123456" });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(account.EmailVerified, Is.True);
+            Assert.That(account.IsActive, Is.True);
+        });
     }
 
     [Test]

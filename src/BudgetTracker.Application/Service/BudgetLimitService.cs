@@ -38,6 +38,9 @@ namespace BudgetTracker.Application.Service
                 var category = await _categoryRepository.GetByNameAsync(request.CategoryName)
                     ?? throw new KeyNotFoundException("we cannot find category for this transaction");
 
+                if (await _budgetLimitRepository.ExistsAsync(request.AccountId, category.Id, request.Month, request.Year))
+                    throw new ArgumentException("budget already exists for this category and month");
+
                 BudgetLimit budget = new()
                 {
                     AccountId = request.AccountId,

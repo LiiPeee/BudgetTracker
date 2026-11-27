@@ -49,7 +49,7 @@ namespace BudgetTracker.WebApi.Controller
 
         [HttpGet("[action]")]
         public async Task<ActionResult<IPagedResult<FilterByMonthAndYearOutPut>>> GetByCategoryAsync(
-            [FromQuery] Categories categoryName,
+            [FromQuery][Required] string categoryName,
             [FromQuery][Range(1, 12)] long month,
             [FromQuery][Range(2000, 2100)] long year,
             [FromQuery] TypeTransaction type, [FromQuery][Range(1, int.MaxValue)] int pageNumber = 1)
