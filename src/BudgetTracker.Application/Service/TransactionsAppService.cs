@@ -214,9 +214,9 @@ public class TransactionsAppService : ITransactionsAppService
                     Description = t.Description,
                     Contact = new ContactOutput
                     {
-                        Email = t.Contact.Email,
-                        Name = t.Contact.Name,
-                        Phone = t.Contact.Phone
+                        Email = t.Contact?.Email,
+                        Name = t.Contact?.Name,
+                        Phone = t.Contact?.Phone
                     },
                     QuantityOfInstallment = t.QuantityInstallment,
                     Name = t.Name,
@@ -284,14 +284,14 @@ public class TransactionsAppService : ITransactionsAppService
                     Recurrence = i.RecurrenceId,
                     Contact = new ContactOutput
                     {
-                        Email = i.Contact.Email,
-                        Name = i.Contact.Name,
-                        Phone = i.Contact.Phone
+                        Email = i.Contact?.Email,
+                        Name = i.Contact?.Name,
+                        Phone = i.Contact?.Phone
                     },
-                    SubCategory = i.SubCategory.Name,
+                    SubCategory = i.SubCategory?.Name,
                     Category = new CategoryOutput
                     {
-                        Name = i.Category.Name,
+                        Name = i.Category?.Name,
                     },
                     QuantityOfInstallment = !string.IsNullOrEmpty(i.QuantityInstallment) ? i.QuantityInstallment : null,
                     DateOfInstallment = !string.IsNullOrEmpty(i.QuantityInstallment) ? i.DateOfInstallment : null,
@@ -335,14 +335,14 @@ public class TransactionsAppService : ITransactionsAppService
                     Recurrence = i.RecurrenceId,
                     Contact = new ContactOutput
                     {
-                        Email = i.Contact.Email,
-                        Name = i.Contact.Name,
-                        Phone = i.Contact.Phone
+                        Email = i.Contact?.Email,
+                        Name = i.Contact?.Name,
+                        Phone = i.Contact?.Phone
                     },
-                    SubCategory = i.SubCategory.Name,
+                    SubCategory = i.SubCategory?.Name,
                     Category = new CategoryOutput
                     {
-                        Name = i.Category.Name,
+                        Name = i.Category?.Name,
                     },
                     QuantityOfInstallment = !string.IsNullOrEmpty(i.QuantityInstallment) ? i.QuantityInstallment : null,
                     DateOfInstallment = !string.IsNullOrEmpty(i.QuantityInstallment) ? i.DateOfInstallment : null,
@@ -386,14 +386,14 @@ public class TransactionsAppService : ITransactionsAppService
                     Recurrence = i.RecurrenceId,
                     Contact = new ContactOutput
                     {
-                        Email = i.Contact.Email,
-                        Name = i.Contact.Name,
-                        Phone = i.Contact.Phone
+                        Email = i.Contact?.Email,
+                        Name = i.Contact?.Name,
+                        Phone = i.Contact?.Phone
                     },
-                    SubCategory = i.SubCategory.Name,
+                    SubCategory = i.SubCategory?.Name,
                     Category = new CategoryOutput
                     {
-                        Name = i.Category.Name,
+                        Name = i.Category?.Name,
                     },
                     QuantityOfInstallment = !string.IsNullOrEmpty(i.QuantityInstallment) ? i.QuantityInstallment : null,
                     DateOfInstallment = !string.IsNullOrEmpty(i.QuantityInstallment) ? i.DateOfInstallment : null,
@@ -436,14 +436,14 @@ public class TransactionsAppService : ITransactionsAppService
                     Recurrence = i.RecurrenceId,
                     Contact = new ContactOutput
                     {
-                        Email = i.Contact.Email,
-                        Name = i.Contact.Name,
-                        Phone = i.Contact.Phone
+                        Email = i.Contact?.Email,
+                        Name = i.Contact?.Name,
+                        Phone = i.Contact?.Phone
                     },
-                    SubCategory = i.SubCategory.Name,
+                    SubCategory = i.SubCategory?.Name,
                     Category = new CategoryOutput
                     {
-                        Name = i.Category.Name,
+                        Name = i.Category?.Name,
                     },
                     QuantityOfInstallment = !string.IsNullOrEmpty(i.QuantityInstallment) ? i.QuantityInstallment : null,
                     DateOfInstallment = !string.IsNullOrEmpty(i.QuantityInstallment) ? i.DateOfInstallment : null,
@@ -486,14 +486,14 @@ public class TransactionsAppService : ITransactionsAppService
                 Recurrence = i.RecurrenceId,
                 Contact = new ContactOutput
                 {
-                    Email = i.Contact.Email,
-                    Name = i.Contact.Name,
-                    Phone = i.Contact.Phone
+                    Email = i.Contact?.Email,
+                    Name = i.Contact?.Name,
+                    Phone = i.Contact?.Phone
                 },
-                SubCategory = i.SubCategory.Name,
+                SubCategory = i.SubCategory?.Name,
                 Category = new CategoryOutput
                 {
-                    Name = i.Category.Name,
+                    Name = i.Category?.Name,
                 },
                 QuantityOfInstallment = !string.IsNullOrEmpty(i.QuantityInstallment) ? i.QuantityInstallment : null,
                 DateOfInstallment = !string.IsNullOrEmpty(i.QuantityInstallment) ? i.DateOfInstallment : null,
@@ -597,14 +597,14 @@ public class TransactionsAppService : ITransactionsAppService
                 Recurrence = i.RecurrenceId,
                 Contact = new ContactOutput
                 {
-                    Email = i.Contact.Email,
-                    Name = i.Contact.Name,
-                    Phone = i.Contact.Phone
+                    Email = i.Contact?.Email,
+                    Name = i.Contact?.Name,
+                    Phone = i.Contact?.Phone
                 },
-                SubCategory = i.SubCategory.Name,
+                SubCategory = i.SubCategory?.Name,
                 Category = new CategoryOutput
                 {
-                    Name = i.Category.Name,
+                    Name = i.Category?.Name,
                 },
                 QuantityOfInstallment = !string.IsNullOrEmpty(i.QuantityInstallment) ? i.QuantityInstallment : null,
                 DateOfInstallment = !string.IsNullOrEmpty(i.QuantityInstallment) ? i.DateOfInstallment : null,
