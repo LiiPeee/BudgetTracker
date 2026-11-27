@@ -19,6 +19,7 @@ namespace BudgetTracker.Infrastructure.Persistence.Repository
             if (_session._transaction != null)
                 throw new InvalidOperationException("A transaction is already in progress for this session.");
 
+            _session.Open();
             _session._transaction = _session._connection.BeginTransaction();
         }
 

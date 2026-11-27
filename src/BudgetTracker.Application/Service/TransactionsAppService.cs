@@ -82,7 +82,7 @@ public class TransactionsAppService : ITransactionsAppService
                 SubCategoryId = subCategory.Id,
                 Description = transactionRequest.Description,
                 NumberOfInstallment = transactionRequest.NumberOfInstallment,
-                Paid = false,
+                Paid = transactionRequest.Paid,
                 RecurrenceId = recurrenceId,
                 TypeTransactionId = typeTransactionId,
                 CompetenceDate = competenceDate,
@@ -130,7 +130,12 @@ public class TransactionsAppService : ITransactionsAppService
             existing.SubCategoryId = subCategory.Id;
             existing.TypeTransactionId = (long)transactionRequest.TypeTransaction;
             existing.Paid = transactionRequest.Paid;
-            existing.NumberOfInstallment = transactionRequest.NumberOfInstallment;
+            // O total de parcelas não é editável: mudar em uma linha não cria nem remove as demais.
+            if (transactionRequest.Description is not null)
+                existing.Description = transactionRequest.Description;
+            if (System.Enum.TryParse<Recurrence>(transactionRequest.RecurrenceName, true, out var recurrence)
+                && System.Enum.IsDefined(recurrence))
+                existing.RecurrenceId = (long)recurrence;
             existing.UpdatedAt = DateTime.UtcNow;
 
             await _transactionRepository.UpdateAsync(existing);

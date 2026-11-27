@@ -41,6 +41,15 @@ namespace BudgetTracker.Core.Domain.Models.Request.Transaction
         [JsonPropertyName("numberOfInstallment")]
         public int? NumberOfInstallment { get; set; }
 
+        // Opcionais: quando ausentes, o valor atual é mantido.
+        [StringLength(30)]
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
+
+        // Texto, e não o enum, para que um valor desconhecido seja ignorado em vez de recusar a edição.
+        [JsonPropertyName("recurrence")]
+        public string? RecurrenceName { get; set; }
+
         [StringLength(50)]
         [JsonPropertyName("contactName")]
         public string ContactName { get; set; } = null!;

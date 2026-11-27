@@ -30,6 +30,15 @@ namespace BudgetTracker.Infrastructure.Persistence.Repository
             _opened = true;
         }
 
+        // Usado por BeginTransaction, que é síncrono e pode ser a primeira operação da requisição.
+        public void Open()
+        {
+            if (_opened) return;
+
+            ((NpgsqlConnection)_connection).Open();
+            _opened = true;
+        }
+
         public void Dispose()
         {
             Dispose(true);
