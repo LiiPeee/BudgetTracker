@@ -176,6 +176,42 @@ public class WriteFlowsIntegrationTest
     }
 
     [Test]
+    public async Task Lists_ShowEveryTransactionTheTotalsCount_EvenWithMissingData()
+    {
+        // Registros antigos podem não ter contato, categoria ou subcategoria.
+        await ScalarAsync<int>(@"INSERT INTO Contact(AccountId, Name, IsActive, TypeContactId, CreatedAt) VALUES (1, 'Contato', true, 1, now());
+            INSERT INTO SubCategory(Name, IsActive, CategoryId, AccountId, CreatedAt) VALUES ('Geral', true, 1, 1, now()); SELECT 1");
+        await ScalarAsync<int>(@"INSERT INTO Transactions(AccountId, Amount, Name, Paid, CompetenceDate, RecurrenceId, ContactId, CategoryId, SubCategoryId, TypeTransactionId, CreatedAt)
+            VALUES (1, 1, 'completa',         false, '2026-11-05', 4, 1,    1,    1,    1, now()),
+                   (1, 2, 'sem subcategoria', false, '2026-11-05', 4, 1,    1,    NULL, 1, now()),
+                   (1, 4, 'sem contato',      false, '2026-11-05', 4, NULL, 1,    1,    1, now()),
+                   (1, 8, 'sem categoria',    false, '2026-11-05', 4, 1,    NULL, 1,    1, now()); SELECT 1");
+
+        await WithTransactionService(async service =>
+        {
+            var type = BudgetTracker.Core.Domain.Entities.TypeTransaction.EXPENSE;
+            var total = await service.FilterExpenseMonthAndYearAsync(AccountId, 2026, 11);
+            var lists = new[]
+            {
+                await service.FilterByMonthAndYearAsync(AccountId, 11, 2026),
+                await service.FilterTransactionByTypeAsync(AccountId, type, 11, 2026),
+                await service.FilterAllInstallmentsAsync(AccountId, 11, 2026, type),
+                await service.FilterTransactionByPaidAsync(AccountId, 11, 2026, false),
+            };
+
+            Assert.That(total, Is.EqualTo(15m));
+            foreach (var list in lists)
+                Assert.That((list.Items.Sum(i => i.Amount), list.TotalRecords), Is.EqualTo((15m, 4)));
+
+            // Os filtros por contato e categoria continuam trazendo só o que corresponde.
+            var byContact = await service.FilterByContactAndMonth(AccountId, 2026, 11, type, 1);
+            var byCategory = await service.FilterTransactionsByCategoryAsync(AccountId, "MORADIA", type, 11, 2026);
+            Assert.That((byContact.TotalRecords, byContact.Items.Sum(i => i.Amount)), Is.EqualTo((3, 11m)));
+            Assert.That((byCategory.TotalRecords, byCategory.Items.Sum(i => i.Amount)), Is.EqualTo((3, 7m)));
+        });
+    }
+
+    [Test]
     public async Task Budgets_RejectDuplicates_AndCountOnlyTheRequestedMonth()
     {
         async Task With(Func<BudgetLimitService, Task> action)

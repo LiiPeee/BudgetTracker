@@ -45,10 +45,10 @@ public class TransactionsRepository : AccountScopedRepositoryBase<Transactions>,
         var query = $@"
 SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
-        INNER JOIN Contact ct ON t.ContactId = ct.Id
-        INNER JOIN Category cat ON t.CategoryId = cat.Id
+        LEFT JOIN Contact ct ON t.ContactId = ct.Id
+        LEFT JOIN Category cat ON t.CategoryId = cat.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
-        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
+        LEFT JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         WHERE t.AccountId = @AccountId AND tp.Name = @Type AND {CategorySql.Normalize("cat.Name")} = {CategorySql.Normalize("@Category")} 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year)
         ORDER BY t.Id DESC
@@ -56,10 +56,10 @@ SELECT {TransactionWithContactAndCategoryColumns}
 
         SELECT COUNT(1)
         FROM Transactions t
-        INNER JOIN Contact ct ON t.ContactId = ct.Id
-        INNER JOIN Category cat ON t.CategoryId = cat.Id
+        LEFT JOIN Contact ct ON t.ContactId = ct.Id
+        LEFT JOIN Category cat ON t.CategoryId = cat.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
-        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
+        LEFT JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         WHERE t.AccountId = @AccountId AND tp.Name = @Type AND {CategorySql.Normalize("cat.Name")} = {CategorySql.Normalize("@Category")} 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year);";
 
@@ -101,9 +101,9 @@ SELECT {TransactionWithContactAndCategoryColumns}
         var query = $@"
 SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
-        INNER JOIN Contact ct ON t.ContactId = ct.Id
-        INNER JOIN Category cat ON t.CategoryId = cat.Id
-        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
+        LEFT JOIN Contact ct ON t.ContactId = ct.Id
+        LEFT JOIN Category cat ON t.CategoryId = cat.Id
+        LEFT JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
         WHERE t.AccountId = @AccountId AND tp.Name = @Type 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year)
@@ -112,9 +112,9 @@ SELECT {TransactionWithContactAndCategoryColumns}
 
         SELECT COUNT(1)
         FROM Transactions t
-        INNER JOIN Contact ct ON t.ContactId = ct.Id
-        INNER JOIN Category cat ON t.CategoryId = cat.Id
-        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
+        LEFT JOIN Contact ct ON t.ContactId = ct.Id
+        LEFT JOIN Category cat ON t.CategoryId = cat.Id
+        LEFT JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
         WHERE t.AccountId = @AccountId AND tp.Name = @Type 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year);";
@@ -157,9 +157,9 @@ SELECT {TransactionWithContactAndCategoryColumns}
         var query = $@"
 SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
-        INNER JOIN Contact ct ON t.ContactId = ct.Id
-        INNER JOIN Category cat ON t.CategoryId = cat.Id
-        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
+        LEFT JOIN Contact ct ON t.ContactId = ct.Id
+        LEFT JOIN Category cat ON t.CategoryId = cat.Id
+        LEFT JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         WHERE t.AccountId = @AccountId 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year)
         ORDER BY t.Id DESC
@@ -167,9 +167,9 @@ SELECT {TransactionWithContactAndCategoryColumns}
 
         SELECT COUNT(1)
         FROM Transactions t
-        INNER JOIN Contact ct ON t.ContactId = ct.Id
-        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
-        INNER JOIN Category cat ON t.CategoryId = cat.Id
+        LEFT JOIN Contact ct ON t.ContactId = ct.Id
+        LEFT JOIN SubCategory sub ON t.SubCategoryId = sub.Id
+        LEFT JOIN Category cat ON t.CategoryId = cat.Id
         WHERE t.AccountId = @AccountId 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year);";
 
@@ -211,9 +211,9 @@ SELECT {TransactionWithContactAndCategoryColumns}
         var query = $@"
 SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
-        INNER JOIN Contact ct ON t.ContactId = ct.Id
-        INNER JOIN Category cat ON t.CategoryId = cat.Id
-        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
+        LEFT JOIN Contact ct ON t.ContactId = ct.Id
+        LEFT JOIN Category cat ON t.CategoryId = cat.Id
+        LEFT JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
         WHERE t.AccountId = @AccountId
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month
@@ -225,9 +225,9 @@ SELECT {TransactionWithContactAndCategoryColumns}
 
         SELECT COUNT(1)
         FROM Transactions t
-        INNER JOIN Contact ct ON t.ContactId = ct.Id
-        INNER JOIN Category cat ON t.CategoryId = cat.Id
-        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
+        LEFT JOIN Contact ct ON t.ContactId = ct.Id
+        LEFT JOIN Category cat ON t.CategoryId = cat.Id
+        LEFT JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
         WHERE t.AccountId = @AccountId
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year)
@@ -274,9 +274,9 @@ SELECT {TransactionWithContactAndCategoryColumns}
         var query = $@"
 SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
-        INNER JOIN Contact ct ON t.ContactId = ct.Id
-        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
-        INNER JOIN Category cat ON t.CategoryId = cat.Id
+        LEFT JOIN Contact ct ON t.ContactId = ct.Id
+        LEFT JOIN SubCategory sub ON t.SubCategoryId = sub.Id
+        LEFT JOIN Category cat ON t.CategoryId = cat.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
         WHERE t.AccountId = @AccountId AND tp.Name = @Type 
             AND ct.Id = @ContactId
@@ -286,10 +286,10 @@ SELECT {TransactionWithContactAndCategoryColumns}
 
         SELECT COUNT(1)
         FROM Transactions t
-        INNER JOIN Contact ct ON t.ContactId = ct.Id
-        INNER JOIN Category cat ON t.CategoryId = cat.Id
+        LEFT JOIN Contact ct ON t.ContactId = ct.Id
+        LEFT JOIN Category cat ON t.CategoryId = cat.Id
         INNER JOIN TypeTransaction tp ON t.TypeTransactionId = tp.Id
-        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
+        LEFT JOIN SubCategory sub ON t.SubCategoryId = sub.Id
         WHERE t.AccountId = @AccountId AND tp.Name = @Type 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year) AND ct.Id = @ContactId ;";
 
@@ -412,9 +412,9 @@ SELECT {TransactionWithContactAndCategoryColumns}
         var query = $@"
 SELECT {TransactionWithContactAndCategoryColumns}
         FROM Transactions t
-        INNER JOIN Contact ct ON t.ContactId = ct.Id
-        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
-        INNER JOIN Category cat ON t.CategoryId = cat.Id
+        LEFT JOIN Contact ct ON t.ContactId = ct.Id
+        LEFT JOIN SubCategory sub ON t.SubCategoryId = sub.Id
+        LEFT JOIN Category cat ON t.CategoryId = cat.Id
         WHERE t.AccountId = @AccountId 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year) AND t.Paid = @Paid
         ORDER BY t.Id DESC
@@ -422,9 +422,9 @@ SELECT {TransactionWithContactAndCategoryColumns}
 
         SELECT COUNT(1)
         FROM Transactions t
-        INNER JOIN Contact ct ON t.ContactId = ct.Id
-        INNER JOIN SubCategory sub ON t.SubCategoryId = sub.Id
-        INNER JOIN Category cat ON t.CategoryId = cat.Id
+        LEFT JOIN Contact ct ON t.ContactId = ct.Id
+        LEFT JOIN SubCategory sub ON t.SubCategoryId = sub.Id
+        LEFT JOIN Category cat ON t.CategoryId = cat.Id
         WHERE t.AccountId = @AccountId 
             AND (EXTRACT(MONTH FROM t.CompetenceDate) = @Month AND EXTRACT(YEAR FROM t.CompetenceDate) = @Year) AND t.Paid = @Paid;";
 
