@@ -12,6 +12,7 @@ public static class ApplicationDependencyWebApi
     public static IServiceCollection ConfigureApplicationServicesWebApi(this IServiceCollection services, IConfiguration configuration)
     {
         return services
+        .AddSingleton(_ => new AuthAttemptTracker())
         .AddScoped<IAuthenticationAppService, AuthenticationAppService>()
         .AddScoped<IContactAppService, ContactAppService>()
         .AddScoped<ITransactionsAppService, TransactionsAppService>()

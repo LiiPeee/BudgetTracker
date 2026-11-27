@@ -32,7 +32,7 @@ public class ExpiredTokenValidatorTest
     {
         var options = new JwtBearerOptions { TokenValidationParameters = parameters ?? BuildParameters() };
         var optionsMock = new Mock<IOptionsMonitor<JwtBearerOptions>>();
-        optionsMock.Setup(o => o.CurrentValue).Returns(options);
+        optionsMock.Setup(o => o.Get(JwtBearerDefaults.AuthenticationScheme)).Returns(options);
         return new ExpiredTokenValidator(optionsMock.Object);
     }
 
