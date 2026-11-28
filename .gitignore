@@ -80,3 +80,5 @@ docker-compose.override.yml
 *.bak
 
 appsettings.json
+# Migrações versionadas (só estrutura; dumps continuam ignorados)
+!db/migrations/*.sql
